@@ -1,89 +1,81 @@
---[[
-    Kam41514 Modern Library
-    Obsidian-compatible visual skin
+--// Kam41514 Modern / Fluent Style Library
+--// Obsidian API Compatible
 
-    API değiştirilmez.
-    CreateWindow / AddTab / Groupbox / Toggle / Slider /
-    Dropdown / Button / Input / ThemeManager / SaveManager
-    Obsidian ile uyumlu kalır.
-]]
+local HttpService = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
 
 ------------------------------------------------------------
--- LOAD ORIGINAL OBSIDIAN LIBRARY
+-- LOAD ORIGINAL OBSIDIAN API
 ------------------------------------------------------------
 
-local OBSIDIAN_URL =
+local Source = game:HttpGet(
     "https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/Library.lua"
+)
 
-local ok, result = pcall(function()
-    return loadstring(game:HttpGet(OBSIDIAN_URL))()
-end)
+local Loader = loadstring(Source)
 
-if not ok or type(result) ~= "table" then
-    error("[ModernLibrary] Obsidian Library yüklenemedi: " .. tostring(result))
+if not Loader then
+    error("[Kam41514] Failed to load Obsidian Library")
 end
 
-local Library = result
+local Library = Loader()
 
-------------------------------------------------------------
--- SERVICES
-------------------------------------------------------------
-
-local TweenService = game:GetService("TweenService")
+if type(Library) ~= "table" then
+    error("[Kam41514] Invalid Library")
+end
 
 ------------------------------------------------------------
 -- MODERN PALETTE
 ------------------------------------------------------------
 
-local Colors = {
-    Background = Color3.fromRGB(8, 9, 13),
-    Main = Color3.fromRGB(14, 15, 21),
+local Modern = {
+    Background = Color3.fromRGB(9, 10, 14),
+    Window = Color3.fromRGB(13, 14, 19),
 
     Sidebar = Color3.fromRGB(11, 12, 17),
-    Content = Color3.fromRGB(12, 13, 18),
+    Content = Color3.fromRGB(14, 15, 21),
 
-    Card = Color3.fromRGB(19, 20, 28),
-    CardHover = Color3.fromRGB(24, 25, 35),
+    Card = Color3.fromRGB(19, 20, 27),
+    CardHover = Color3.fromRGB(24, 25, 34),
 
-    Element = Color3.fromRGB(24, 25, 34),
-    ElementHover = Color3.fromRGB(31, 32, 43),
+    Input = Color3.fromRGB(23, 24, 32),
+    InputHover = Color3.fromRGB(29, 30, 40),
 
     Accent = Color3.fromRGB(139, 92, 246),
-    AccentLight = Color3.fromRGB(167, 139, 250),
+    AccentHover = Color3.fromRGB(157, 117, 250),
 
-    Text = Color3.fromRGB(245, 245, 250),
-    SecondaryText = Color3.fromRGB(164, 166, 180),
+    Text = Color3.fromRGB(245, 245, 248),
+    SubText = Color3.fromRGB(157, 160, 174),
 
-    Border = Color3.fromRGB(43, 45, 58),
+    Border = Color3.fromRGB(38, 40, 51),
 
     Success = Color3.fromRGB(74, 222, 128),
-    Red = Color3.fromRGB(248, 113, 113),
+    Danger = Color3.fromRGB(248, 113, 113),
 }
 
 ------------------------------------------------------------
--- SCHEME
+-- OBSIDIAN SCHEME COMPATIBILITY
 ------------------------------------------------------------
 
--- ÖNEMLİ:
--- Scheme tablosunu değiştirmiyoruz.
--- Mevcut ThemeManager referansları korunuyor.
-
-Library.Scheme.BackgroundColor = Colors.Background
-Library.Scheme.MainColor = Colors.Main
-Library.Scheme.AccentColor = Colors.Accent
-Library.Scheme.OutlineColor = Colors.Border
-Library.Scheme.FontColor = Colors.Text
-Library.Scheme.RedColor = Colors.Red
+Library.Scheme.BackgroundColor = Modern.Background
+Library.Scheme.MainColor = Modern.Window
+Library.Scheme.AccentColor = Modern.Accent
+Library.Scheme.OutlineColor = Modern.Border
+Library.Scheme.FontColor = Modern.Text
+Library.Scheme.RedColor = Modern.Danger
 Library.Scheme.DestructiveColor = Color3.fromRGB(220, 70, 80)
-Library.Scheme.DarkColor = Color3.fromRGB(5, 6, 9)
+Library.Scheme.DarkColor = Color3.fromRGB(6, 7, 10)
 Library.Scheme.WhiteColor = Color3.fromRGB(255, 255, 255)
 
--- Daha okunaklı font
-Library.Scheme.Font = Font.fromEnum(Enum.Font.Gotham)
+pcall(function()
+    Library.Scheme.Font = Font.fromEnum(Enum.Font.Gotham)
+end)
 
 ------------------------------------------------------------
--- ANIMATION
+-- MODERN DEFAULTS
 ------------------------------------------------------------
+
+Library.CornerRadius = 16
 
 Library.TweenInfo = TweenInfo.new(
     0.16,
@@ -98,7 +90,7 @@ Library.TabTransitionInfo = TweenInfo.new(
 )
 
 Library.GroupboxTweenInfo = TweenInfo.new(
-    0.22,
+    0.18,
     Enum.EasingStyle.Quart,
     Enum.EasingDirection.Out
 )
@@ -109,78 +101,85 @@ Library.DropdownTransitionInfo = TweenInfo.new(
     Enum.EasingDirection.Out
 )
 
+Library.KeyPickerTransitionInfo = TweenInfo.new(
+    0.16,
+    Enum.EasingStyle.Quart,
+    Enum.EasingDirection.Out
+)
+
+Library.WindowAnimationInfo = TweenInfo.new(
+    0.25,
+    Enum.EasingStyle.Quart,
+    Enum.EasingDirection.Out
+)
+
 ------------------------------------------------------------
 -- HELPERS
 ------------------------------------------------------------
 
-local function AddCorner(Object, Radius)
+local function Corner(Object, Radius)
 
     if not Object or not Object:IsA("GuiObject") then
         return
     end
 
-    local Corner = Object:FindFirstChild("ModernCorner")
+    local Existing = Object:FindFirstChild("KamModernCorner")
 
-    if not Corner then
-        Corner = Instance.new("UICorner")
-        Corner.Name = "ModernCorner"
-        Corner.Parent = Object
+    if not Existing then
+        Existing = Instance.new("UICorner")
+        Existing.Name = "KamModernCorner"
+        Existing.Parent = Object
     end
 
-    Corner.CornerRadius = UDim.new(0, Radius)
+    Existing.CornerRadius = UDim.new(0, Radius or 10)
+
+    return Existing
 end
 
 
-local function AddStroke(Object, Color, Transparency)
+local function Stroke(Object, Color, Transparency)
 
     if not Object or not Object:IsA("GuiObject") then
         return
     end
 
-    local Stroke = Object:FindFirstChild("ModernStroke")
+    local Existing = Object:FindFirstChild("KamModernStroke")
 
-    if not Stroke then
-        Stroke = Instance.new("UIStroke")
-        Stroke.Name = "ModernStroke"
-        Stroke.Parent = Object
+    if not Existing then
+        Existing = Instance.new("UIStroke")
+        Existing.Name = "KamModernStroke"
+        Existing.Parent = Object
     end
 
-    Stroke.Color = Color or Colors.Border
-    Stroke.Transparency = Transparency or 0.2
-    Stroke.Thickness = 1
+    Existing.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    Existing.Thickness = 1
+    Existing.Color = Color or Modern.Border
+    Existing.Transparency = Transparency or 0.15
+
+    return Existing
 end
 
 
-local function Tween(Object, Properties)
+local function SetText(Object)
 
     if not Object then
         return
     end
-
-    local Animation = TweenService:Create(
-        Object,
-        Library.TweenInfo,
-        Properties
-    )
-
-    Animation:Play()
-
-    return Animation
-end
-
-------------------------------------------------------------
--- TEXT STYLE
-------------------------------------------------------------
-
-local function StyleText(Object)
 
     if Object:IsA("TextLabel")
         or Object:IsA("TextButton")
         or Object:IsA("TextBox") then
 
         pcall(function()
-            Object.FontFace = Library.Scheme.Font
+            Object.FontFace =
+                Font.fromEnum(Enum.Font.Gotham)
         end)
+
+        Object.TextColor3 =
+            Object.TextColor3:Lerp(
+                Modern.Text,
+                0.35
+            )
 
         if Object.TextSize < 12 then
             Object.TextSize = 13
@@ -188,105 +187,60 @@ local function StyleText(Object)
     end
 end
 
-------------------------------------------------------------
--- ELEMENT STYLE
-------------------------------------------------------------
 
-local function StyleElement(Object)
+local function Animate(Object, Properties)
 
-    if not Object or not Object:IsA("GuiObject") then
+    if not Object then
         return
     end
 
-    StyleText(Object)
+    local Tween = TweenService:Create(
+        Object,
+        Library.TweenInfo,
+        Properties
+    )
 
-    --------------------------------------------------------
-    -- INPUT / DROPDOWN / BUTTON
-    --------------------------------------------------------
+    Tween:Play()
 
-    if Object:IsA("TextButton") then
+    return Tween
+end
 
-        AddCorner(Object, 9)
 
-        Object.MouseEnter:Connect(function()
+local function IsBackground(Object)
 
-            if Object.Visible then
+    return Object:IsA("Frame")
+        or Object:IsA("ScrollingFrame")
+        or Object:IsA("TextButton")
+        or Object:IsA("TextBox")
+end
 
-                local Original =
-                    Object:GetAttribute("ModernOriginalColor")
+------------------------------------------------------------
+-- STYLE BASIC OBJECT
+------------------------------------------------------------
 
-                if not Original then
-                    Object:SetAttribute(
-                        "ModernOriginalColor",
-                        Object.BackgroundColor3
-                    )
-                end
+local function StyleObject(Object)
 
-                Tween(Object, {
-                    BackgroundColor3 = Colors.ElementHover
-                })
+    if not Object then
+        return
+    end
 
-            end
+    SetText(Object)
 
-        end)
+    if Object:IsA("TextBox") then
 
-        Object.MouseLeave:Connect(function()
+        Object.BackgroundColor3 =
+            Modern.Input
 
-            local Original =
-                Object:GetAttribute("ModernOriginalColor")
+        Object.BackgroundTransparency = 0
 
-            if Original then
-                Tween(Object, {
-                    BackgroundColor3 = Color3.fromRGB(
-                        Original,
-                        Original,
-                        Original
-                    )
-                })
-            end
+        Corner(Object, 9)
+        Stroke(Object, Modern.Border, 0.2)
 
-        end)
+    elseif Object:IsA("TextButton") then
 
-    elseif Object:IsA("TextBox") then
+        Corner(Object, 9)
 
-        AddCorner(Object, 9)
-        AddStroke(Object, Colors.Border, 0.15)
-
-        Object.Focused:Connect(function()
-
-            Tween(Object, {
-                BackgroundColor3 = Colors.ElementHover
-            })
-
-            local Stroke =
-                Object:FindFirstChild("ModernStroke")
-
-            if Stroke then
-                Tween(Stroke, {
-                    Color = Colors.Accent,
-                    Transparency = 0
-                })
-            end
-
-        end)
-
-        Object.FocusLost:Connect(function()
-
-            Tween(Object, {
-                BackgroundColor3 = Colors.Element
-            })
-
-            local Stroke =
-                Object:FindFirstChild("ModernStroke")
-
-            if Stroke then
-                Tween(Stroke, {
-                    Color = Colors.Border,
-                    Transparency = 0.15
-                })
-            end
-
-        end)
+        Object.AutoButtonColor = false
 
     end
 end
@@ -295,291 +249,260 @@ end
 -- STYLE GROUPBOX
 ------------------------------------------------------------
 
-local function StyleGroupbox(Groupbox)
+local function StyleGroupbox(Box)
 
-    if not Groupbox or not Groupbox.Holder then
+    if not Box then
         return
     end
 
-    local Holder = Groupbox.Holder
+    local Holder = Box.Holder
+
+    if not Holder then
+        return
+    end
+
+    Holder.BackgroundColor3 =
+        Modern.Card
+
+    Holder.BackgroundTransparency = 0
+
+    Corner(Holder, 15)
+    Stroke(Holder, Modern.Border, 0.18)
 
     --------------------------------------------------------
-    -- CARD
+    -- Header
     --------------------------------------------------------
 
-    Holder.BackgroundColor3 = Colors.Card
+    for _, Object in ipairs(
+        Holder:GetDescendants()
+    ) do
 
-    AddCorner(
-        Holder,
-        15
-    )
+        SetText(Object)
 
-    AddStroke(
-        Holder,
-        Colors.Border,
-        0.15
-    )
+        if Object:IsA("TextLabel") then
 
-    --------------------------------------------------------
-    -- HEADER
-    --------------------------------------------------------
+            if Object.TextSize >= 12 then
 
-    local Children = Holder:GetChildren()
-
-    for _, Child in ipairs(Children) do
-
-        if Child:IsA("TextLabel") then
-
-            Child.FontFace = Library.Scheme.Font
-
-            if Child.TextSize < 14 then
-                Child.TextSize = 14
-            end
-
-            Child.TextColor3 = Colors.Text
-
-        elseif Child:IsA("ImageLabel") then
-
-            if Child.Size.X.Offset <= 24
-                and Child.Size.Y.Offset <= 24 then
-
-                Child.ImageColor3 = Colors.AccentLight
+                Object.TextColor3 =
+                    Modern.Text
 
             end
 
         end
-
     end
 
     --------------------------------------------------------
-    -- CONTENT
+    -- Elements
     --------------------------------------------------------
 
-    if Groupbox.Container then
+    if Box.Container then
 
         for _, Object in ipairs(
-            Groupbox.Container:GetDescendants()
+            Box.Container:GetDescendants()
         ) do
 
-            StyleElement(Object)
+            StyleObject(Object)
 
         end
 
     end
 
+    --------------------------------------------------------
+    -- Hover
+    --------------------------------------------------------
+
+    if not Holder:GetAttribute(
+        "KamHoverConnected"
+    ) then
+
+        Holder:SetAttribute(
+            "KamHoverConnected",
+            true
+        )
+
+        Holder.MouseEnter:Connect(function()
+
+            Animate(
+                Holder,
+                {
+                    BackgroundColor3 =
+                        Modern.CardHover
+                }
+            )
+
+        end)
+
+        Holder.MouseLeave:Connect(function()
+
+            Animate(
+                Holder,
+                {
+                    BackgroundColor3 =
+                        Modern.Card
+                }
+            )
+
+        end)
+
+    end
 end
 
 ------------------------------------------------------------
 -- STYLE TAB BUTTON
 ------------------------------------------------------------
 
-local function StyleTabButton(Button)
+local function StyleTab(Button)
 
     if not Button then
         return
     end
 
-    AddCorner(
-        Button,
-        10
-    )
+    if not Button:IsA("GuiObject") then
+        return
+    end
 
-    Button.BackgroundColor3 =
-        Colors.Element
+    Corner(Button, 10)
 
     Button.BackgroundTransparency = 1
 
     --------------------------------------------------------
-    -- LABEL
+    -- Text
     --------------------------------------------------------
 
-    local Label = Button:FindFirstChildWhichIsA(
-        "TextLabel",
-        true
-    )
+    for _, Object in ipairs(
+        Button:GetDescendants()
+    ) do
 
-    if Label then
+        SetText(Object)
 
-        Label.FontFace =
-            Library.Scheme.Font
+        if Object:IsA("ImageLabel")
+            or Object:IsA("ImageButton") then
 
-        Label.TextSize = 14
-        Label.TextColor3 =
-            Colors.Text
+            Object.ImageColor3 =
+                Modern.SubText
 
+        end
     end
 
     --------------------------------------------------------
-    -- ICON
+    -- Hover
     --------------------------------------------------------
 
-    local Icon = Button:FindFirstChildWhichIsA(
-        "ImageLabel",
+    if Button:GetAttribute(
+        "KamTabConnected"
+    ) then
+        return
+    end
+
+    Button:SetAttribute(
+        "KamTabConnected",
         true
     )
 
-    if Icon then
-        Icon.ImageColor3 =
-            Colors.AccentLight
+    Button.MouseEnter:Connect(function()
+
+        Animate(
+            Button,
+            {
+                BackgroundTransparency = 0.72
+            }
+        )
+
+    end)
+
+    Button.MouseLeave:Connect(function()
+
+        if not Button:GetAttribute(
+            "KamActive"
+        ) then
+
+            Animate(
+                Button,
+                {
+                    BackgroundTransparency = 1
+                }
+            )
+
+        end
+
+    end)
+
+end
+
+------------------------------------------------------------
+-- STYLE ALL GROUPBOXES
+------------------------------------------------------------
+
+local function StyleTabs()
+
+    for _, TabData in pairs(
+        Library.Tabs
+    ) do
+
+        if TabData.Groupboxes then
+
+            for _, Box in pairs(
+                TabData.Groupboxes
+            ) do
+
+                StyleGroupbox(Box)
+
+            end
+
+        end
     end
 
 end
 
 ------------------------------------------------------------
--- MODERN TAB SELECTION
+-- STYLE SIDEBAR
 ------------------------------------------------------------
 
-local function SetupTabAnimations()
+local function StyleSidebar()
 
-    for _, Entry in ipairs(Library.TabButtons) do
+    if not Library.WindowContainer then
+        return
+    end
 
-        local Label = Entry.Label
+    local Container =
+        Library.WindowContainer
 
-        if not Label then
-            continue
-        end
+    for _, Object in ipairs(
+        Container:GetDescendants()
+    ) do
 
-        local Button = Label.Parent
-
-        if not Button then
-            continue
-        end
-
-        StyleTabButton(Button)
+        SetText(Object)
 
         ----------------------------------------------------
-        -- ACTIVE INDICATOR
+        -- Sidebar-ish ScrollingFrames
         ----------------------------------------------------
 
-        local Indicator =
-            Button:FindFirstChild("ModernIndicator")
+        if Object:IsA("ScrollingFrame") then
 
-        if not Indicator then
-
-            Indicator = Instance.new("Frame")
-            Indicator.Name = "ModernIndicator"
-
-            Indicator.AnchorPoint =
-                Vector2.new(0, 0.5)
-
-            Indicator.Position =
-                UDim2.new(0, 4, 0.5, 0)
-
-            Indicator.Size =
-                UDim2.fromOffset(3, 22)
-
-            Indicator.BackgroundColor3 =
-                Colors.Accent
-
-            Indicator.BorderSizePixel = 0
-
-            Indicator.BackgroundTransparency = 1
-
-            Indicator.Parent = Button
-
-            AddCorner(
-                Indicator,
-                3
-            )
+            Object.ScrollBarThickness = 2
 
         end
 
-        ----------------------------------------------------
-        -- HOVER
-        ----------------------------------------------------
+    end
 
-        Button.MouseEnter:Connect(function()
+    --------------------------------------------------------
+    -- Tab buttons
+    --------------------------------------------------------
 
-            if Library.ActiveTab then
+    for _, Data in ipairs(
+        Library.TabButtons
+    ) do
 
-                local ActiveLabel =
-                    Library.ActiveTab
+        if Data.Label then
 
-                if Label.Text ~= ActiveLabel.Name then
+            local Button =
+                Data.Label.Parent
 
-                    Tween(Button, {
-                        BackgroundTransparency = 0.65
-                    })
-
-                end
-
+            if Button then
+                StyleTab(Button)
             end
 
-        end)
-
-        Button.MouseLeave:Connect(function()
-
-            if Library.ActiveTab then
-
-                Tween(Button, {
-                    BackgroundTransparency = 1
-                })
-
-            end
-
-        end)
-
-        ----------------------------------------------------
-        -- CLICK
-        ----------------------------------------------------
-
-        Button.MouseButton1Click:Connect(function()
-
-            for _, Other in ipairs(
-                Library.TabButtons
-            ) do
-
-                if Other.Label then
-
-                    local OtherButton =
-                        Other.Label.Parent
-
-                    if OtherButton then
-
-                        local OtherIndicator =
-                            OtherButton:FindFirstChild(
-                                "ModernIndicator"
-                            )
-
-                        Tween(
-                            OtherButton,
-                            {
-                                BackgroundTransparency = 1
-                            }
-                        )
-
-                        if OtherIndicator then
-
-                            Tween(
-                                OtherIndicator,
-                                {
-                                    BackgroundTransparency = 1
-                                }
-                            )
-
-                        end
-
-                    end
-
-                end
-
-            end
-
-            Tween(
-                Button,
-                {
-                    BackgroundTransparency = 0
-                }
-            )
-
-            Tween(
-                Indicator,
-                {
-                    BackgroundTransparency = 0
-                }
-            )
-
-        end)
+        end
 
     end
 
@@ -591,126 +514,75 @@ end
 
 local function StyleWindow()
 
-    local MainFrame = Library.WindowContainer
-
-    if not MainFrame then
+    if not Library.WindowContainer then
         return
     end
 
-    -- WindowContainer'ın parent'ı ana frame'dir.
-    local WindowFrame = MainFrame.Parent
+    local Container =
+        Library.WindowContainer
 
     --------------------------------------------------------
-    -- WINDOW
+    -- Main container
     --------------------------------------------------------
 
-    if WindowFrame and WindowFrame:IsA("GuiObject") then
+    if Container:IsA("GuiObject") then
 
-        WindowFrame.BackgroundColor3 =
-            Colors.Main
-
-        AddCorner(
-            WindowFrame,
-            20
-        )
-
-        AddStroke(
-            WindowFrame,
-            Colors.Border,
-            0.05
-        )
+        Container.BackgroundColor3 =
+            Modern.Content
 
     end
 
     --------------------------------------------------------
-    -- CONTENT
-    --------------------------------------------------------
-
-    MainFrame.BackgroundColor3 =
-        Colors.Content
-
-    --------------------------------------------------------
-    -- CHILDREN
+    -- Find large window frames
     --------------------------------------------------------
 
     for _, Object in ipairs(
-        MainFrame:GetDescendants()
+        Container:GetDescendants()
     ) do
 
-        StyleText(Object)
+        SetText(Object)
 
-        if Object:IsA("TextBox") then
+        if Object:IsA("Frame") then
 
-            AddCorner(
-                Object,
-                9
-            )
+            local Size =
+                Object.AbsoluteSize
 
-            AddStroke(
-                Object,
-                Colors.Border,
-                0.15
-            )
+            ------------------------------------------------
+            -- Large cards / containers
+            ------------------------------------------------
 
-        end
+            if Size.X > 250
+                and Size.Y > 100 then
 
-    end
+                if Object ~= Container then
 
-    --------------------------------------------------------
-    -- SIDEBAR
-    --------------------------------------------------------
+                    -- Don't aggressively recolor
+                    -- every internal frame.
 
-    if WindowFrame then
+                    local Existing =
+                        Object:FindFirstChild(
+                            "KamModernCorner"
+                        )
 
-        for _, Object in ipairs(
-            WindowFrame:GetChildren()
-        ) do
+                    if Existing then
+                        Existing.CornerRadius =
+                            UDim.new(0, 14)
+                    end
 
-            if Object:IsA("ScrollingFrame") then
-
-                Object.BackgroundColor3 =
-                    Colors.Sidebar
+                end
 
             end
 
         end
-
     end
 
-    --------------------------------------------------------
-    -- GROUPBOXES
-    --------------------------------------------------------
-
-    for _, Tab in pairs(
-        Library.Tabs
-    ) do
-
-        if Tab.Groupboxes then
-
-            for _, Groupbox in pairs(
-                Tab.Groupboxes
-            ) do
-
-                StyleGroupbox(
-                    Groupbox
-                )
-
-            end
-
-        end
-
-    end
-
-    --------------------------------------------------------
-    -- TABS
-    --------------------------------------------------------
-
-    SetupTabAnimations()
+    StyleSidebar()
+    StyleTabs()
 
 end
 
 ------------------------------------------------------------
--- ORIGINAL CREATE WINDOW
+-- ORIGINAL CREATEWINDOW
 ------------------------------------------------------------
 
 local OriginalCreateWindow =
@@ -718,19 +590,19 @@ local OriginalCreateWindow =
 
 Library.CreateWindow = function(
     self,
-    WindowInfo
+    Information
 )
 
-    WindowInfo =
-        WindowInfo or {}
+    Information =
+        Information or {}
 
     --------------------------------------------------------
-    -- MODERN DEFAULTS
+    -- Modern default size
     --------------------------------------------------------
 
-    if WindowInfo.Size == nil then
+    if Information.Size == nil then
 
-        WindowInfo.Size =
+        Information.Size =
             UDim2.fromOffset(
                 1050,
                 680
@@ -738,45 +610,50 @@ Library.CreateWindow = function(
 
     end
 
-    if WindowInfo.Font == nil then
-        WindowInfo.Font =
-            Enum.Font.Gotham
+    if Information.CornerRadius == nil then
+        Information.CornerRadius = 18
     end
 
-    if WindowInfo.CornerRadius == nil then
-        WindowInfo.CornerRadius = 18
+    if Information.MinContainerWidth == nil then
+        Information.MinContainerWidth = 760
     end
 
-    if WindowInfo.MinContainerWidth == nil then
-        WindowInfo.MinContainerWidth = 700
+    if Information.MinSidebarWidth == nil then
+        Information.MinSidebarWidth = 180
     end
 
-    WindowInfo.Animations = {
+    if Information.SidebarCompactWidth == nil then
+        Information.SidebarCompactWidth = 55
+    end
+
+    --------------------------------------------------------
+    -- Modern animations
+    --------------------------------------------------------
+
+    Information.Animations = {
         ToggleWindow = true,
         TabSwitch = true,
         Groupbox = true,
         Dropdown = true,
-        KeyPicker = true,
+        KeyPicker = true
     }
 
-    WindowInfo.TabTransitionTime = 0.18
-
-    WindowInfo.TabSwipeOffset = 18
-
-    WindowInfo.TabSwipeFrom = "right"
+    Information.TabTransitionTime = 0.20
+    Information.TabSwipeOffset = 16
+    Information.TabSwipeFrom = "right"
 
     --------------------------------------------------------
-    -- CREATE ORIGINAL WINDOW
+    -- CREATE ORIGINAL API WINDOW
     --------------------------------------------------------
 
     local Window =
         OriginalCreateWindow(
             self,
-            WindowInfo
+            Information
         )
 
     --------------------------------------------------------
-    -- WAIT FOR UI
+    -- Apply after Roblox renders everything
     --------------------------------------------------------
 
     task.defer(function()
@@ -785,25 +662,24 @@ Library.CreateWindow = function(
 
         StyleWindow()
 
-        ----------------------------------------------------
-        -- REAPPLY AFTER ALL HUB ELEMENTS ARE CREATED
-        ----------------------------------------------------
+        task.wait(0.20)
 
-        task.wait(0.25)
+        StyleWindow()
+
+        task.wait(0.50)
 
         StyleWindow()
 
     end)
 
     return Window
-
 end
 
 ------------------------------------------------------------
--- PUBLIC MODERN STYLE
+-- PUBLIC STYLE REFRESH
 ------------------------------------------------------------
 
-function Library:ApplyModernStyle()
+function Library:RefreshModernStyle()
 
     task.defer(function()
 
@@ -812,42 +688,42 @@ function Library:ApplyModernStyle()
     end)
 
     return true
-
 end
 
 ------------------------------------------------------------
--- ACCENT API
+-- ACCENT COLOR
 ------------------------------------------------------------
 
 function Library:SetModernAccent(Color)
 
-    if typeof(Color) ~= "Color3" then
-        return false
-    end
-
-    Colors.Accent = Color
-    Colors.AccentLight = Color:Lerp(
-        Color3.new(1, 1, 1),
-        0.25
+    assert(
+        typeof(Color) == "Color3",
+        "Color must be Color3"
     )
+
+    Modern.Accent = Color
 
     Library.Scheme.AccentColor =
         Color
 
-    return true
+    task.defer(function()
+
+        StyleWindow()
+
+    end)
 
 end
 
 ------------------------------------------------------------
--- MODERN INFO
+-- EXPOSE STYLE
 ------------------------------------------------------------
 
-Library.Modern = true
-Library.ModernVersion = "3.0"
-Library.ModernColors = Colors
+Library.Modern = Modern
+Library.ModernStyle = true
+Library.ModernVersion = "4.0"
 
 ------------------------------------------------------------
--- RETURN ORIGINAL API OBJECT
+-- RETURN
 ------------------------------------------------------------
 
 return Library
