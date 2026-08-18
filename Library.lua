@@ -1,12 +1,18 @@
 --[[
     KamUI
-    Fluent UI + Obsidian API Adapter
+    Modern Roblox UI Library
 
-    UI Engine:
-        Fluent
+    API STYLE:
+        Obsidian inspired
 
-    API:
-        Obsidian-style
+    UI:
+        Custom
+        Rounded
+        Dark
+        Modern
+        Search
+        Left / Right Groupboxes
+        Draggable
 
     Supported:
         CreateWindow
@@ -15,6 +21,7 @@
         AddRightGroupbox
 
         AddToggle
+        AddKeyPicker
         AddSlider
         AddDropdown
         AddInput
@@ -26,71 +33,210 @@
         Toggles
         Registry
         Scheme
-
-    This file does NOT load Obsidian.
 ]]
 
-------------------------------------------------------------
--- FLUENT
-------------------------------------------------------------
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
-local Fluent = loadstring(game:HttpGet(
-    "https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"
-))()
+local LocalPlayer = Players.LocalPlayer
 
 ------------------------------------------------------------
 -- LIBRARY
 ------------------------------------------------------------
 
-local Library = {}
+local Library = {
+    Version = "1.0.0",
 
-Library.__index = Library
+    Options = {},
+    Toggles = {},
+    Registry = {},
 
-Library.Version = "1.0.0"
+    Tabs = {},
 
-Library.Options = {}
-Library.Toggles = {}
-Library.Registry = {}
+    Theme = {
+        Background = Color3.fromRGB(8, 8, 10),
+        Sidebar = Color3.fromRGB(11, 11, 14),
+        Groupbox = Color3.fromRGB(14, 14, 18),
+        Element = Color3.fromRGB(20, 20, 25),
+        ElementHover = Color3.fromRGB(27, 27, 33),
 
-Library.Scheme = {
-    BackgroundColor = Color3.fromRGB(15, 15, 18),
-    MainColor = Color3.fromRGB(20, 20, 24),
-    AccentColor = Color3.fromRGB(138, 92, 246),
-    OutlineColor = Color3.fromRGB(42, 42, 49),
-    FontColor = Color3.fromRGB(245, 245, 248)
+        Outline = Color3.fromRGB(38, 38, 45),
+
+        Accent = Color3.fromRGB(135, 95, 255),
+
+        Text = Color3.fromRGB(245, 245, 248),
+        SecondaryText = Color3.fromRGB(178, 178, 188),
+        MutedText = Color3.fromRGB(125, 125, 136),
+
+        White = Color3.fromRGB(255, 255, 255),
+
+        ToggleOff = Color3.fromRGB(50, 50, 58)
+    },
+
+    Scheme = {},
+
+    Tween = TweenInfo.new(
+        0.16,
+        Enum.EasingStyle.Quart,
+        Enum.EasingDirection.Out
+    ),
+
+    ScreenGui = nil,
+    Window = nil,
+
+    ActiveTab = nil,
+
+    Unloaded = false
 }
 
-Library.Colors = Library.Scheme
-
-Library.Fluent = Fluent
+Library.Scheme = Library.Theme
 
 ------------------------------------------------------------
--- INTERNAL
+-- UTILITIES
 ------------------------------------------------------------
 
-local CurrentWindow
+local function Create(class, properties, parent)
 
-local Tabs = {}
+    local object = Instance.new(class)
 
-local function GetOptionName(name)
-    return tostring(name)
-end
+    for property, value in pairs(properties or {}) do
+        pcall(function()
+            object[property] = value
+        end)
+    end
 
-local function RegisterOption(name, object)
-    name = GetOptionName(name)
-
-    Library.Options[name] = object
+    object.Parent = parent
 
     return object
 end
 
-local function RegisterToggle(name, object)
-    name = GetOptionName(name)
+local function Corner(object, radius)
 
-    Library.Toggles[name] = object
-    Library.Options[name] = object
+    local corner = Instance.new("UICorner")
 
-    return object
+    corner.CornerRadius = UDim.new(
+        0,
+        radius
+    )
+
+    corner.Parent = object
+
+    return corner
+end
+
+local function Stroke(
+    object,
+    color,
+    transparency
+)
+
+    local stroke = Instance.new("UIStroke")
+
+    stroke.Color =
+        color or Library.Theme.Outline
+
+    stroke.Transparency =
+        transparency or 0
+
+    stroke.Thickness = 1
+
+    stroke.Parent = object
+
+    return stroke
+end
+
+local function Tween(
+    object,
+    properties,
+    info
+)
+
+    if not object
+        or not object.Parent then
+        return
+    end
+
+    return TweenService:Create(
+        object,
+        info or Library.Tween,
+        properties
+    ):Play()
+end
+
+local function Padding(
+    object,
+    left,
+    right,
+    top,
+    bottom
+)
+
+    local padding =
+        Instance.new("UIPadding")
+
+    padding.PaddingLeft =
+        UDim.new(0, left or 0)
+
+    padding.PaddingRight =
+        UDim.new(0, right or 0)
+
+    padding.PaddingTop =
+        UDim.new(0, top or 0)
+
+    padding.PaddingBottom =
+        UDim.new(0, bottom or 0)
+
+    padding.Parent = object
+
+    return padding
+end
+
+local function GetGuiParent()
+
+    local success, result =
+        pcall(function()
+            return gethui()
+        end)
+
+    if success and result then
+        return result
+    end
+
+    return game:GetService("CoreGui")
+end
+
+------------------------------------------------------------
+-- FONT
+------------------------------------------------------------
+
+local function Text(
+    parent,
+    properties
+)
+
+    properties = properties or {}
+
+    properties.Font =
+        properties.Font
+        or Enum.Font.GothamMedium
+
+    properties.TextSize =
+        properties.TextSize
+        or 12
+
+    properties.TextColor3 =
+        properties.TextColor3
+        or Library.Theme.Text
+
+    properties.BackgroundTransparency =
+        1
+
+    return Create(
+        "TextLabel",
+        properties,
+        parent
+    )
 end
 
 ------------------------------------------------------------
@@ -101,304 +247,1117 @@ function Library:CreateWindow(config)
 
     config = config or {}
 
-    local fluentConfig = {
-        Title = config.Title or "KamUI",
+    if self.ScreenGui then
+        self.ScreenGui:Destroy()
+    end
 
-        SubTitle =
-            config.Subtitle
-            or config.SubTitle
-            or "",
+    self.Options = {}
+    self.Toggles = {}
+    self.Registry = {}
+    self.Tabs = {}
 
-        TabWidth =
-            config.TabWidth
-            or 160,
+    self.Unloaded = false
 
-        Size =
-            config.Size
-            or UDim2.fromOffset(
-                920,
-                600
-            ),
+    --------------------------------------------------------
+    -- SCREEN GUI
+    --------------------------------------------------------
 
-        Acrylic =
-            config.Acrylic ~= false,
+    local ScreenGui =
+        Create(
+            "ScreenGui",
+            {
+                Name = "KamUI",
 
-        Theme =
-            config.Theme
-            or "Dark",
+                ResetOnSpawn = false,
 
-        MinimizeKey =
-            config.MinimizeKey
-            or Enum.KeyCode.RightControl
-    }
+                IgnoreGuiInset = true,
 
-    local window = Fluent:CreateWindow(
-        fluentConfig
+                ZIndexBehavior =
+                    Enum.ZIndexBehavior.Sibling
+            },
+            GetGuiParent()
+        )
+
+    self.ScreenGui =
+        ScreenGui
+
+    --------------------------------------------------------
+    -- MAIN WINDOW
+    --------------------------------------------------------
+
+    local Window =
+        Create(
+            "Frame",
+            {
+                Name = "Window",
+
+                AnchorPoint =
+                    Vector2.new(
+                        0.5,
+                        0.5
+                    ),
+
+                Position =
+                    UDim2.fromScale(
+                        0.5,
+                        0.5
+                    ),
+
+                Size =
+                    config.Size
+                    or UDim2.fromOffset(
+                        980,
+                        620
+                    ),
+
+                BackgroundColor3 =
+                    self.Theme.Background,
+
+                BorderSizePixel = 0
+            },
+            ScreenGui
+        )
+
+    Corner(Window, 16)
+
+    Stroke(
+        Window,
+        self.Theme.Outline,
+        0.1
     )
 
-    CurrentWindow = window
-
-    self.Window = window
+    self.Window = Window
 
     --------------------------------------------------------
-    -- WINDOW COMPATIBILITY
+    -- HEADER
     --------------------------------------------------------
 
-    function window:SelectTab(tab)
-        if tab and tab.Select then
-            tab:Select()
+    local Header =
+        Create(
+            "Frame",
+            {
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        64
+                    ),
+
+                BackgroundTransparency = 1
+            },
+            Window
+        )
+
+    --------------------------------------------------------
+    -- TITLE
+    --------------------------------------------------------
+
+    Text(
+        Header,
+        {
+            Position =
+                UDim2.fromOffset(
+                    22,
+                    12
+                ),
+
+            Size =
+                UDim2.new(
+                    1,
+                    -160,
+                    0,
+                    23
+                ),
+
+            Text =
+                config.Title
+                or "KamUI",
+
+            Font =
+                Enum.Font.GothamBold,
+
+            TextSize = 16,
+
+            TextXAlignment =
+                Enum.TextXAlignment.Left
+        }
+    )
+
+    Text(
+        Header,
+        {
+            Position =
+                UDim2.fromOffset(
+                    23,
+                    35
+                ),
+
+            Size =
+                UDim2.new(
+                    1,
+                    -160,
+                    0,
+                    17
+                ),
+
+            Text =
+                config.Subtitle
+                or "Modern Interface",
+
+            TextColor3 =
+                self.Theme.MutedText,
+
+            Font =
+                Enum.Font.Gotham,
+
+            TextSize = 11,
+
+            TextXAlignment =
+                Enum.TextXAlignment.Left
+        }
+    )
+
+    --------------------------------------------------------
+    -- CLOSE
+    --------------------------------------------------------
+
+    local Close =
+        Create(
+            "TextButton",
+            {
+                AnchorPoint =
+                    Vector2.new(
+                        1,
+                        0.5
+                    ),
+
+                Position =
+                    UDim2.new(
+                        1,
+                        -18,
+                        0.5,
+                        0
+                    ),
+
+                Size =
+                    UDim2.fromOffset(
+                        34,
+                        34
+                    ),
+
+                BackgroundColor3 =
+                    self.Theme.Element,
+
+                BorderSizePixel = 0,
+
+                Text = "×",
+
+                TextColor3 =
+                    self.Theme.SecondaryText,
+
+                Font =
+                    Enum.Font.GothamMedium,
+
+                TextSize = 20,
+
+                AutoButtonColor = false
+            },
+            Header
+        )
+
+    Corner(Close, 10)
+
+    Close.MouseEnter:Connect(
+        function()
+
+            Tween(
+                Close,
+                {
+                    BackgroundColor3 =
+                        Color3.fromRGB(
+                            60,
+                            28,
+                            35
+                        ),
+
+                    TextColor3 =
+                        Color3.fromRGB(
+                            255,
+                            100,
+                            110
+                        )
+                }
+            )
+
         end
-    end
+    )
 
-    function window:Notify(data)
+    Close.MouseLeave:Connect(
+        function()
 
-        if type(data) == "string" then
-            return Fluent:Notify({
-                Title = "Notification",
-                Content = data,
-                Duration = 4
-            })
+            Tween(
+                Close,
+                {
+                    BackgroundColor3 =
+                        self.Theme.Element,
+
+                    TextColor3 =
+                        self.Theme.SecondaryText
+                }
+            )
+
         end
+    )
 
-        data = data or {}
-
-        return Fluent:Notify({
-            Title =
-                data.Title
-                or "Notification",
-
-            Content =
-                data.Description
-                or data.Content
-                or "",
-
-            Duration =
-                data.Time
-                or data.Duration
-                or 4
-        })
-    end
-
-    function window:Minimize()
-        if window.Minimize then
-            window:Minimize()
+    Close.MouseButton1Click:Connect(
+        function()
+            self:Unload()
         end
-    end
+    )
 
-    return window
+    --------------------------------------------------------
+    -- DRAGGING
+    --------------------------------------------------------
+
+    local dragging = false
+    local dragStart
+    local startPosition
+
+    Header.InputBegan:Connect(
+        function(input)
+
+            if input.UserInputType ==
+                Enum.UserInputType.MouseButton1 then
+
+                dragging = true
+
+                dragStart =
+                    input.Position
+
+                startPosition =
+                    Window.Position
+
+            end
+
+        end
+    )
+
+    UserInputService.InputChanged:Connect(
+        function(input)
+
+            if not dragging then
+                return
+            end
+
+            if input.UserInputType ~=
+                Enum.UserInputType.MouseMovement then
+                return
+            end
+
+            local delta =
+                input.Position -
+                dragStart
+
+            Window.Position =
+                UDim2.new(
+                    startPosition.X.Scale,
+                    startPosition.X.Offset +
+                        delta.X,
+
+                    startPosition.Y.Scale,
+                    startPosition.Y.Offset +
+                        delta.Y
+                )
+
+        end
+    )
+
+    UserInputService.InputEnded:Connect(
+        function(input)
+
+            if input.UserInputType ==
+                Enum.UserInputType.MouseButton1 then
+
+                dragging = false
+
+            end
+
+        end
+    )
+
+    --------------------------------------------------------
+    -- BODY
+    --------------------------------------------------------
+
+    local Body =
+        Create(
+            "Frame",
+            {
+                Position =
+                    UDim2.fromOffset(
+                        12,
+                        64
+                    ),
+
+                Size =
+                    UDim2.new(
+                        1,
+                        -24,
+                        1,
+                        -76
+                    ),
+
+                BackgroundTransparency = 1
+            },
+            Window
+        )
+
+    --------------------------------------------------------
+    -- SIDEBAR
+    --------------------------------------------------------
+
+    local Sidebar =
+        Create(
+            "Frame",
+            {
+                Size =
+                    UDim2.new(
+                        0,
+                        175,
+                        1,
+                        0
+                    ),
+
+                BackgroundColor3 =
+                    self.Theme.Sidebar,
+
+                BorderSizePixel = 0
+            },
+            Body
+        )
+
+    Corner(Sidebar, 12)
+
+    Stroke(
+        Sidebar,
+        self.Theme.Outline,
+        0.35
+    )
+
+    Padding(
+        Sidebar,
+        8,
+        8,
+        8,
+        8
+    )
+
+    --------------------------------------------------------
+    -- SEARCH
+    --------------------------------------------------------
+
+    local Search =
+        Create(
+            "TextBox",
+            {
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        38
+                    ),
+
+                BackgroundColor3 =
+                    self.Theme.Element,
+
+                BorderSizePixel = 0,
+
+                PlaceholderText =
+                    "Search...",
+
+                PlaceholderColor3 =
+                    self.Theme.MutedText,
+
+                Text = "",
+
+                TextColor3 =
+                    self.Theme.Text,
+
+                Font =
+                    Enum.Font.Gotham,
+
+                TextSize = 12,
+
+                ClearTextOnFocus = false
+            },
+            Sidebar
+        )
+
+    Corner(Search, 10)
+
+    Stroke(
+        Search,
+        self.Theme.Outline,
+        0.5
+    )
+
+    Padding(
+        Search,
+        12,
+        10,
+        0,
+        0
+    )
+
+    --------------------------------------------------------
+    -- TAB HOLDER
+    --------------------------------------------------------
+
+    local TabHolder =
+        Create(
+            "ScrollingFrame",
+            {
+                Position =
+                    UDim2.fromOffset(
+                        0,
+                        47
+                    ),
+
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        1,
+                        -47
+                    ),
+
+                BackgroundTransparency = 1,
+
+                BorderSizePixel = 0,
+
+                ScrollBarThickness = 2,
+
+                ScrollBarImageColor3 =
+                    self.Theme.Accent,
+
+                CanvasSize =
+                    UDim2.new(
+                        0,
+                        0,
+                        0,
+                        0
+                    ),
+
+                AutomaticCanvasSize =
+                    Enum.AutomaticSize.Y
+            },
+            Sidebar
+        )
+
+    Padding(
+        TabHolder,
+        0,
+        0,
+        3,
+        5
+    )
+
+    Create(
+        "UIListLayout",
+        {
+            Padding =
+                UDim.new(
+                    0,
+                    4
+                ),
+
+            SortOrder =
+                Enum.SortOrder.LayoutOrder
+        },
+        TabHolder
+    )
+
+    self.Navigation = TabHolder
+
+    --------------------------------------------------------
+    -- CONTENT
+    --------------------------------------------------------
+
+    local Content =
+        Create(
+            "Frame",
+            {
+                Position =
+                    UDim2.fromOffset(
+                        187,
+                        0
+                    ),
+
+                Size =
+                    UDim2.new(
+                        1,
+                        -187,
+                        1,
+                        0
+                    ),
+
+                BackgroundTransparency = 1
+            },
+            Body
+        )
+
+    self.Content = Content
+
+    --------------------------------------------------------
+    -- SEARCH FUNCTION
+    --------------------------------------------------------
+
+    Search:GetPropertyChangedSignal(
+        "Text"
+    ):Connect(
+        function()
+
+            local query =
+                string.lower(
+                    Search.Text
+                )
+
+            for _, tab in pairs(
+                self.Tabs
+            ) do
+
+                local visible =
+                    query == ""
+
+                if not visible then
+
+                    visible =
+                        string.find(
+                            string.lower(
+                                tab.Name
+                            ),
+                            query,
+                            1,
+                            true
+                        ) ~= nil
+
+                    if not visible then
+
+                        for _, group in ipairs(
+                            tab.Groupboxes
+                        ) do
+
+                            if string.find(
+                                string.lower(
+                                    group.Name
+                                ),
+                                query,
+                                1,
+                                true
+                            ) then
+
+                                visible = true
+
+                                break
+
+                            end
+
+                        end
+
+                    end
+
+                end
+
+                tab.Button.Visible =
+                    visible
+
+            end
+
+        end
+    )
+
+    return self
 end
 
 ------------------------------------------------------------
--- TAB ADAPTER
+-- TAB
 ------------------------------------------------------------
 
-local TabAdapter = {}
+local Tab = {}
+Tab.__index = Tab
 
-TabAdapter.__index = TabAdapter
-
-function Library:AddTab()
-    error(
-        "AddTab must be called on Window"
-    )
-end
-
-function Library:BuildTab(window, name, icon)
-
-    local fluentTab =
-        window:AddTab({
-            Title = name,
-            Icon = icon
-        })
+function Library:AddTab(name, icon)
 
     local tab =
-        setmetatable({
+        setmetatable(
+            {
+                Name = name,
 
-            Library = self,
+                Icon = icon,
 
-            Window = window,
+                Groupboxes = {},
 
-            FluentTab = fluentTab,
+                LeftGroupboxes = {},
 
-            Name = name,
-
-            LeftGroupboxes = {},
-
-            RightGroupboxes = {},
-
-            Groupboxes = {}
-
-        }, TabAdapter)
-
-    Tabs[name] = tab
+                RightGroupboxes = {}
+            },
+            Tab
+        )
 
     --------------------------------------------------------
-    -- OBSIDIAN STYLE
+    -- BUTTON
     --------------------------------------------------------
 
-    function tab:Select()
+    local Button =
+        Create(
+            "TextButton",
+            {
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        40
+                    ),
 
-        if self.FluentTab.Select then
-            self.FluentTab:Select()
+                BackgroundTransparency = 1,
+
+                BorderSizePixel = 0,
+
+                Text = "",
+
+                AutoButtonColor = false
+            },
+            self.Navigation
+        )
+
+    Corner(Button, 9)
+
+    local Indicator =
+        Create(
+            "Frame",
+            {
+                Position =
+                    UDim2.fromOffset(
+                        4,
+                        9
+                    ),
+
+                Size =
+                    UDim2.fromOffset(
+                        3,
+                        22
+                    ),
+
+                BackgroundColor3 =
+                    self.Theme.Accent,
+
+                BackgroundTransparency = 1,
+
+                BorderSizePixel = 0
+            },
+            Button
+        )
+
+    Corner(Indicator, 3)
+
+    local Icon =
+        Text(
+            Button,
+            {
+                Position =
+                    UDim2.fromOffset(
+                        14,
+                        0
+                    ),
+
+                Size =
+                    UDim2.fromOffset(
+                        22,
+                        40
+                    ),
+
+                Text =
+                    icon or "•",
+
+                TextColor3 =
+                    self.Theme.MutedText,
+
+                TextSize = 13,
+
+                Font =
+                    Enum.Font.GothamMedium,
+
+                TextXAlignment =
+                    Enum.TextXAlignment.Center,
+
+                TextYAlignment =
+                    Enum.TextYAlignment.Center
+            }
+        )
+
+    local Label =
+        Text(
+            Button,
+            {
+                Position =
+                    UDim2.fromOffset(
+                        44,
+                        0
+                    ),
+
+                Size =
+                    UDim2.new(
+                        1,
+                        -50,
+                        1,
+                        0
+                    ),
+
+                Text = name,
+
+                TextColor3 =
+                    self.Theme.SecondaryText,
+
+                TextSize = 12,
+
+                Font =
+                    Enum.Font.GothamMedium,
+
+                TextXAlignment =
+                    Enum.TextXAlignment.Left,
+
+                TextYAlignment =
+                    Enum.TextYAlignment.Center
+            }
+        )
+
+    --------------------------------------------------------
+    -- PAGE
+    --------------------------------------------------------
+
+    local Page =
+        Create(
+            "ScrollingFrame",
+            {
+                Size =
+                    UDim2.fromScale(
+                        1,
+                        1
+                    ),
+
+                BackgroundTransparency = 1,
+
+                BorderSizePixel = 0,
+
+                Visible = false,
+
+                ScrollBarThickness = 3,
+
+                ScrollBarImageColor3 =
+                    self.Theme.Accent,
+
+                AutomaticCanvasSize =
+                    Enum.AutomaticSize.Y,
+
+                CanvasSize =
+                    UDim2.new()
+            },
+            self.Content
+        )
+
+    Padding(
+        Page,
+        7,
+        7,
+        5,
+        12
+    )
+
+    --------------------------------------------------------
+    -- TWO COLUMNS
+    --------------------------------------------------------
+
+    local Columns =
+        Create(
+            "Frame",
+            {
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        0
+                    ),
+
+                AutomaticSize =
+                    Enum.AutomaticSize.Y,
+
+                BackgroundTransparency = 1
+            },
+            Page
+        )
+
+    local Left =
+        Create(
+            "Frame",
+            {
+                Size =
+                    UDim2.new(
+                        0.5,
+                        -6,
+                        0,
+                        0
+                    ),
+
+                AutomaticSize =
+                    Enum.AutomaticSize.Y,
+
+                BackgroundTransparency = 1
+            },
+            Columns
+        )
+
+    Create(
+        "UIListLayout",
+        {
+            Padding =
+                UDim.new(
+                    0,
+                    9
+                )
+        },
+        Left
+    )
+
+    local Right =
+        Create(
+            "Frame",
+            {
+                Position =
+                    UDim2.new(
+                        0.5,
+                        6,
+                        0,
+                        0
+                    ),
+
+                Size =
+                    UDim2.new(
+                        0.5,
+                        -6,
+                        0,
+                        0
+                    ),
+
+                AutomaticSize =
+                    Enum.AutomaticSize.Y,
+
+                BackgroundTransparency = 1
+            },
+            Columns
+        )
+
+    Create(
+        "UIListLayout",
+        {
+            Padding =
+                UDim.new(
+                    0,
+                    9
+                )
+        },
+        Right
+    )
+
+    tab.Button = Button
+    tab.Page = Page
+
+    tab.Left = Left
+    tab.Right = Right
+
+    tab.Indicator = Indicator
+    tab.Label = Label
+    tab.IconObject = Icon
+
+    self.Tabs[name] = tab
+
+    --------------------------------------------------------
+    -- HOVER
+    --------------------------------------------------------
+
+    Button.MouseEnter:Connect(
+        function()
+
+            if self.ActiveTab ~= tab then
+
+                Tween(
+                    Button,
+                    {
+                        BackgroundColor3 =
+                            self.Theme.Element,
+
+                        BackgroundTransparency =
+                            0.25
+                    }
+                )
+
+                Tween(
+                    Label,
+                    {
+                        TextColor3 =
+                            self.Theme.Text
+                    }
+                )
+
+            end
+
         end
+    )
 
+    Button.MouseLeave:Connect(
+        function()
+
+            if self.ActiveTab ~= tab then
+
+                Tween(
+                    Button,
+                    {
+                        BackgroundTransparency =
+                            1
+                    }
+                )
+
+                Tween(
+                    Label,
+                    {
+                        TextColor3 =
+                            self.Theme.SecondaryText
+                    }
+                )
+
+            end
+
+        end
+    )
+
+    Button.MouseButton1Click:Connect(
+        function()
+
+            self:SelectTab(tab)
+
+        end
+    )
+
+    if not self.ActiveTab then
+        self:SelectTab(tab)
     end
 
     return tab
 end
 
 ------------------------------------------------------------
--- PATCH WINDOW ADDTAB
+-- SELECT TAB
 ------------------------------------------------------------
 
-local function PatchWindow(window)
+function Library:SelectTab(tab)
 
-    local originalAddTab =
-        window.AddTab
+    if type(tab) == "string" then
+        tab =
+            self.Tabs[tab]
+    end
 
-    function window:AddTab(data)
+    if not tab then
+        return
+    end
 
-        local name
-        local icon
+    self.ActiveTab = tab
 
-        if type(data) == "string" then
-            name = data
-        else
-            name =
-                data.Title
-                or data.Name
-                or "Tab"
+    for _, current in pairs(
+        self.Tabs
+    ) do
 
-            icon = data.Icon
-        end
+        local active =
+            current == tab
 
-        local fluentTab =
-            originalAddTab(
-                self,
+        current.Page.Visible =
+            active
+
+        if active then
+
+            Tween(
+                current.Button,
                 {
-                    Title = name,
-                    Icon = icon
+                    BackgroundColor3 =
+                        self.Theme.Element,
+
+                    BackgroundTransparency =
+                        0
                 }
             )
 
-        local tab =
-            setmetatable({
-
-                Library = Library,
-
-                Window = self,
-
-                FluentTab = fluentTab,
-
-                Name = name,
-
-                LeftGroupboxes = {},
-
-                RightGroupboxes = {},
-
-                Groupboxes = {}
-
-            }, TabAdapter)
-
-        ----------------------------------------------------
-        -- LEFT
-        ----------------------------------------------------
-
-        function tab:AddLeftGroupbox(
-            title,
-            icon
-        )
-
-            local group =
-                self.FluentTab:AddSection(
-                    title
-                )
-
-            local box =
-                CreateGroupbox(
-                    self,
-                    group,
-                    title,
-                    "Left"
-                )
-
-            table.insert(
-                self.LeftGroupboxes,
-                box
+            Tween(
+                current.Indicator,
+                {
+                    BackgroundTransparency =
+                        0
+                }
             )
 
-            table.insert(
-                self.Groupboxes,
-                box
+            Tween(
+                current.Label,
+                {
+                    TextColor3 =
+                        self.Theme.Text
+                }
             )
 
-            return box
+            Tween(
+                current.IconObject,
+                {
+                    TextColor3 =
+                        self.Theme.Accent
+                }
+            )
+
+        else
+
+            Tween(
+                current.Button,
+                {
+                    BackgroundTransparency =
+                        1
+                }
+            )
+
+            Tween(
+                current.Indicator,
+                {
+                    BackgroundTransparency =
+                        1
+                }
+            )
+
+            Tween(
+                current.Label,
+                {
+                    TextColor3 =
+                        self.Theme.SecondaryText
+                }
+            )
+
+            Tween(
+                current.IconObject,
+                {
+                    TextColor3 =
+                        self.Theme.MutedText
+                }
+            )
+
         end
 
-        ----------------------------------------------------
-        -- RIGHT
-        ----------------------------------------------------
-
-        function tab:AddRightGroupbox(
-            title,
-            icon
-        )
-
-            local group =
-                self.FluentTab:AddSection(
-                    title
-                )
-
-            local box =
-                CreateGroupbox(
-                    self,
-                    group,
-                    title,
-                    "Right"
-                )
-
-            table.insert(
-                self.RightGroupboxes,
-                box
-            )
-
-            table.insert(
-                self.Groupboxes,
-                box
-            )
-
-            return box
-        end
-
-        ----------------------------------------------------
-        -- SINGLE GROUPBOX
-        ----------------------------------------------------
-
-        function tab:AddGroupbox(
-            title
-        )
-
-            local group =
-                self.FluentTab:AddSection(
-                    title
-                )
-
-            local box =
-                CreateGroupbox(
-                    self,
-                    group,
-                    title,
-                    "Left"
-                )
-
-            table.insert(
-                self.Groupboxes,
-                box
-            )
-
-            return box
-        end
-
-        return tab
     end
 end
 
@@ -407,565 +1366,1861 @@ end
 ------------------------------------------------------------
 
 local Groupbox = {}
-
 Groupbox.__index = Groupbox
 
-function CreateGroupbox(
-    tab,
-    fluentGroup,
+function Tab:_CreateGroupbox(
     name,
-    side
+    parent,
+    collection
 )
 
     local group =
-        setmetatable({
+        setmetatable(
+            {
+                Name = name,
 
-            Library = Library,
-
-            Tab = tab,
-
-            Fluent = fluentGroup,
-
-            Name = name,
-
-            Side = side,
-
-            Elements = {}
-
-        }, Groupbox)
-
-    --------------------------------------------------------
-    -- LABEL
-    --------------------------------------------------------
-
-    function group:AddLabel(
-        text,
-        doesWrap
-    )
-
-        local element =
-            fluentGroup:AddParagraph({
-                Title = "",
-                Content = tostring(text)
-            })
-
-        table.insert(
-            group.Elements,
-            element
+                Elements = {}
+            },
+            Groupbox
         )
 
-        return element
-    end
+    local Frame =
+        Create(
+            "Frame",
+            {
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        0
+                    ),
 
-    --------------------------------------------------------
-    -- DIVIDER
-    --------------------------------------------------------
+                AutomaticSize =
+                    Enum.AutomaticSize.Y,
 
-    function group:AddDivider()
+                BackgroundColor3 =
+                    self.Library.Theme.Groupbox,
 
-        if fluentGroup.AddParagraph then
-
-            return fluentGroup:AddParagraph({
-                Title = "",
-                Content = "────────────"
-            })
-
-        end
-
-    end
-
-    --------------------------------------------------------
-    -- BUTTON
-    --------------------------------------------------------
-
-    function group:AddButton(data)
-
-        if type(data) == "string" then
-
-            data = {
-                Text = data
-            }
-
-        end
-
-        data = data or {}
-
-        local button =
-            fluentGroup:AddButton({
-
-                Title =
-                    data.Text
-                    or data.Name
-                    or "Button",
-
-                Description =
-                    data.Description
-                    or "",
-
-                Callback =
-                    data.Callback
-                    or data.Func
-                    or function()
-                    end
-
-            })
-
-        table.insert(
-            group.Elements,
-            button
+                BorderSizePixel = 0
+            },
+            parent
         )
 
-        return button
-    end
+    Corner(Frame, 12)
 
-    --------------------------------------------------------
-    -- TOGGLE
-    --------------------------------------------------------
-
-    function group:AddToggle(
-        name,
-        data
+    Stroke(
+        Frame,
+        self.Library.Theme.Outline,
+        0.25
     )
 
-        data = data or {}
+    --------------------------------------------------------
+    -- HEADER
+    --------------------------------------------------------
 
-        local toggle =
-            fluentGroup:AddToggle(
-                name,
-                {
+    local Header =
+        Create(
+            "Frame",
+            {
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        44
+                    ),
 
-                    Title =
-                        data.Text
-                        or data.Title
-                        or name,
+                BackgroundTransparency = 1
+            },
+            Frame
+        )
 
-                    Default =
-                        data.Default
-                        or false,
+    Text(
+        Header,
+        {
+            Position =
+                UDim2.fromOffset(
+                    14,
+                    0
+                ),
 
-                    Callback =
-                        data.Callback
-                        or data.Changed
-                        or function()
-                        end
-                }
-            )
+            Size =
+                UDim2.new(
+                    1,
+                    -28,
+                    1,
+                    0
+                ),
 
-        ----------------------------------------------------
-        -- OBSIDIAN METHODS
-        ----------------------------------------------------
+            Text = name,
 
-        local object = {
+            Font =
+                Enum.Font.GothamBold,
 
-            Name = name,
+            TextSize = 13,
 
-            Value =
-                data.Default
-                or false,
+            TextColor3 =
+                self.Library.Theme.Text,
 
-            Fluent = toggle
+            TextXAlignment =
+                Enum.TextXAlignment.Left,
 
+            TextYAlignment =
+                Enum.TextYAlignment.Center
         }
-
-        function object:SetValue(
-            value
-        )
-
-            object.Value =
-                value == true
-
-            if toggle.SetValue then
-                toggle:SetValue(
-                    object.Value
-                )
-            end
-
-        end
-
-        function object:GetValue()
-
-            if toggle.GetValue then
-                return toggle:GetValue()
-            end
-
-            return object.Value
-        end
-
-        function object:OnChanged(
-            callback
-        )
-
-            object.Callback =
-                callback
-
-            return object
-        end
-
-        RegisterToggle(
-            name,
-            object
-        )
-
-        return object
-    end
-
-    --------------------------------------------------------
-    -- SLIDER
-    --------------------------------------------------------
-
-    function group:AddSlider(
-        name,
-        data
     )
 
-        data = data or {}
-
-        local min =
-            tonumber(data.Min)
-            or 0
-
-        local max =
-            tonumber(data.Max)
-            or 100
-
-        local default =
-            tonumber(data.Default)
-            or min
-
-        local rounding =
-            tonumber(data.Rounding)
-
-        if rounding == nil then
-            rounding = 0
-        end
-
-        local slider =
-            fluentGroup:AddSlider(
-                name,
-                {
-
-                    Title =
-                        data.Text
-                        or data.Title
-                        or name,
-
-                    Description =
-                        data.Description
-                        or "",
-
-                    Default =
-                        default,
-
-                    Min =
-                        min,
-
-                    Max =
-                        max,
-
-                    Rounding =
-                        rounding,
-
-                    Callback =
-                        data.Callback
-                        or function()
-                        end
-                }
-            )
-
-        local object = {
-
-            Name = name,
-
-            Min = min,
-
-            Max = max,
-
-            Value = default,
-
-            Rounding = rounding,
-
-            Fluent = slider
-
-        }
-
-        function object:SetValue(
-            value
-        )
-
-            value =
-                tonumber(value)
-                or min
-
-            value =
-                math.clamp(
-                    value,
-                    min,
-                    max
-                )
-
-            object.Value =
-                value
-
-            if slider.SetValue then
-                slider:SetValue(
-                    value
-                )
-            end
-
-        end
-
-        function object:GetValue()
-
-            if slider.GetValue then
-                return slider:GetValue()
-            end
-
-            return object.Value
-        end
-
-        function object:OnChanged(
-            callback
-        )
-
-            object.Callback =
-                callback
-
-            return object
-        end
-
-        RegisterOption(
-            name,
-            object
-        )
-
-        return object
-    end
-
     --------------------------------------------------------
-    -- DROPDOWN
+    -- CONTENT
     --------------------------------------------------------
 
-    function group:AddDropdown(
-        name,
-        data
+    local Container =
+        Create(
+            "Frame",
+            {
+                Position =
+                    UDim2.fromOffset(
+                        13,
+                        42
+                    ),
+
+                Size =
+                    UDim2.new(
+                        1,
+                        -26,
+                        0,
+                        0
+                    ),
+
+                AutomaticSize =
+                    Enum.AutomaticSize.Y,
+
+                BackgroundTransparency = 1
+            },
+            Frame
+        )
+
+    Padding(
+        Container,
+        0,
+        0,
+        0,
+        13
     )
 
-        data = data or {}
+    Create(
+        "UIListLayout",
+        {
+            Padding =
+                UDim.new(
+                    0,
+                    7
+                ),
 
-        local dropdown =
-            fluentGroup:AddDropdown(
-                name,
-                {
-
-                    Title =
-                        data.Text
-                        or data.Title
-                        or name,
-
-                    Values =
-                        data.Values
-                        or {},
-
-                    Multi =
-                        data.Multi
-                        or false,
-
-                    Default =
-                        data.Default,
-
-                    Callback =
-                        data.Callback
-                        or function()
-                        end
-                }
-            )
-
-        local object = {
-
-            Name = name,
-
-            Value =
-                data.Default,
-
-            Values =
-                data.Values
-                or {},
-
-            Fluent = dropdown
-
-        }
-
-        function object:SetValue(
-            value
-        )
-
-            object.Value =
-                value
-
-            if dropdown.SetValue then
-                dropdown:SetValue(
-                    value
-                )
-            end
-
-        end
-
-        function object:GetValue()
-
-            if dropdown.GetValue then
-                return dropdown:GetValue()
-            end
-
-            return object.Value
-        end
-
-        function object:SetValues(
-            values
-        )
-
-            object.Values =
-                values
-
-            if dropdown.SetValues then
-                dropdown:SetValues(
-                    values
-                )
-            end
-
-        end
-
-        function object:OnChanged(
-            callback
-        )
-
-            object.Callback =
-                callback
-
-            return object
-        end
-
-        RegisterOption(
-            name,
-            object
-        )
-
-        return object
-    end
-
-    --------------------------------------------------------
-    -- INPUT
-    --------------------------------------------------------
-
-    function group:AddInput(
-        name,
-        data
+            SortOrder =
+                Enum.SortOrder.LayoutOrder
+        },
+        Container
     )
 
-        data = data or {}
+    group.Frame = Frame
+    group.Container = Container
+    group.Library = self.Library
 
-        local input =
-            fluentGroup:AddInput(
-                name,
-                {
-
-                    Title =
-                        data.Text
-                        or data.Title
-                        or name,
-
-                    Default =
-                        data.Default
-                        or "",
-
-                    Placeholder =
-                        data.Placeholder
-                        or "",
-
-                    Numeric =
-                        data.Numeric
-                        or false,
-
-                    Finished =
-                        data.Finished
-                        or false,
-
-                    Callback =
-                        data.Callback
-                        or function()
-                        end
-                }
-            )
-
-        local object = {
-
-            Name = name,
-
-            Value =
-                data.Default
-                or "",
-
-            Fluent = input
-
-        }
-
-        function object:SetValue(
-            value
-        )
-
-            value =
-                tostring(value)
-
-            object.Value =
-                value
-
-            if input.SetValue then
-                input:SetValue(
-                    value
-                )
-            end
-
-        end
-
-        function object:GetValue()
-
-            if input.GetValue then
-                return input:GetValue()
-            end
-
-            return object.Value
-        end
-
-        RegisterOption(
-            name,
-            object
-        )
-
-        return object
-    end
+    table.insert(
+        collection,
+        group
+    )
 
     return group
 end
 
-------------------------------------------------------------
--- PATCH CREATE WINDOW
-------------------------------------------------------------
-
-local OriginalCreateWindow =
-    Library.CreateWindow
-
-function Library:CreateWindow(
-    config
+function Tab:AddLeftGroupbox(
+    name,
+    icon
 )
 
-    local window =
-        OriginalCreateWindow(
-            self,
-            config
+    return self:_CreateGroupbox(
+        name,
+        self.Left,
+        self.LeftGroupboxes
+    )
+end
+
+function Tab:AddRightGroupbox(
+    name,
+    icon
+)
+
+    return self:_CreateGroupbox(
+        name,
+        self.Right,
+        self.RightGroupboxes
+    )
+end
+
+------------------------------------------------------------
+-- LABEL
+------------------------------------------------------------
+
+function Groupbox:AddLabel(
+    text,
+    wrap
+)
+
+    local label =
+        Text(
+            self.Container,
+            {
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        wrap
+                            and 42
+                            or 24
+                    ),
+
+                Text =
+                    tostring(text),
+
+                TextColor3 =
+                    self.Library.Theme.SecondaryText,
+
+                TextSize = 12,
+
+                TextWrapped =
+                    wrap == true,
+
+                TextXAlignment =
+                    Enum.TextXAlignment.Left,
+
+                TextYAlignment =
+                    Enum.TextYAlignment.Center
+            }
         )
 
-    PatchWindow(window)
+    table.insert(
+        self.Elements,
+        label
+    )
 
-    return window
+    return label
+end
+
+------------------------------------------------------------
+-- DIVIDER
+------------------------------------------------------------
+
+function Groupbox:AddDivider()
+
+    local divider =
+        Create(
+            "Frame",
+            {
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        1
+                    ),
+
+                BackgroundColor3 =
+                    self.Library.Theme.Outline,
+
+                BackgroundTransparency =
+                    0.25,
+
+                BorderSizePixel = 0
+            },
+            self.Container
+        )
+
+    return divider
+end
+
+------------------------------------------------------------
+-- BUTTON
+------------------------------------------------------------
+
+function Groupbox:AddButton(
+    data
+)
+
+    if type(data) == "string" then
+
+        data = {
+            Text = data
+        }
+
+    end
+
+    data = data or {}
+
+    local button =
+        Create(
+            "TextButton",
+            {
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        38
+                    ),
+
+                BackgroundColor3 =
+                    self.Library.Theme.Element,
+
+                BorderSizePixel = 0,
+
+                Text =
+                    data.Text
+                    or "Button",
+
+                TextColor3 =
+                    self.Library.Theme.Text,
+
+                Font =
+                    Enum.Font.GothamMedium,
+
+                TextSize = 12,
+
+                AutoButtonColor = false
+            },
+            self.Container
+        )
+
+    Corner(button, 9)
+
+    Stroke(
+        button,
+        self.Library.Theme.Outline,
+        0.35
+    )
+
+    button.MouseEnter:Connect(
+        function()
+
+            Tween(
+                button,
+                {
+                    BackgroundColor3 =
+                        self.Library.Theme.ElementHover
+                }
+            )
+
+        end
+    )
+
+    button.MouseLeave:Connect(
+        function()
+
+            Tween(
+                button,
+                {
+                    BackgroundColor3 =
+                        self.Library.Theme.Element
+                }
+            )
+
+        end
+    )
+
+    button.MouseButton1Click:Connect(
+        function()
+
+            local callback =
+                data.Callback
+                or data.Func
+
+            if callback then
+                callback()
+            end
+
+        end
+    )
+
+    return button
+end
+
+------------------------------------------------------------
+-- TOGGLE
+------------------------------------------------------------
+
+local Toggle = {}
+Toggle.__index = Toggle
+
+function Groupbox:AddToggle(
+    name,
+    info
+)
+
+    info = info or {}
+
+    local toggle =
+        setmetatable(
+            {
+                Name = name,
+
+                Value =
+                    info.Default == true,
+
+                Callback =
+                    info.Callback
+                    or function()
+                    end,
+
+                Changed =
+                    info.Changed
+                    or function()
+                    end
+            },
+            Toggle
+        )
+
+    local Holder =
+        Create(
+            "Frame",
+            {
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        38
+                    ),
+
+                BackgroundTransparency = 1
+            },
+            self.Container
+        )
+
+    Text(
+        Holder,
+        {
+            Size =
+                UDim2.new(
+                    1,
+                    -65,
+                    1,
+                    0
+                ),
+
+            Text =
+                info.Text
+                or info.Title
+                or name,
+
+            TextSize = 12,
+
+            TextColor3 =
+                self.Library.Theme.Text,
+
+            TextXAlignment =
+                Enum.TextXAlignment.Left,
+
+            TextYAlignment =
+                Enum.TextYAlignment.Center
+        }
+    )
+
+    local Switch =
+        Create(
+            "TextButton",
+            {
+                AnchorPoint =
+                    Vector2.new(
+                        1,
+                        0.5
+                    ),
+
+                Position =
+                    UDim2.new(
+                        1,
+                        0,
+                        0.5,
+                        0
+                    ),
+
+                Size =
+                    UDim2.fromOffset(
+                        42,
+                        22
+                    ),
+
+                BackgroundColor3 =
+                    self.Library.Theme.ToggleOff,
+
+                BorderSizePixel = 0,
+
+                Text = "",
+
+                AutoButtonColor = false
+            },
+            Holder
+        )
+
+    Corner(Switch, 11)
+
+    local Knob =
+        Create(
+            "Frame",
+            {
+                AnchorPoint =
+                    Vector2.new(
+                        0,
+                        0.5
+                    ),
+
+                Position =
+                    UDim2.new(
+                        0,
+                        3,
+                        0.5,
+                        0
+                    ),
+
+                Size =
+                    UDim2.fromOffset(
+                        16,
+                        16
+                    ),
+
+                BackgroundColor3 =
+                    Color3.fromRGB(
+                        190,
+                        190,
+                        198
+                    ),
+
+                BorderSizePixel = 0
+            },
+            Switch
+        )
+
+    Corner(Knob, 8)
+
+    local function Update(
+        value,
+        silent
+    )
+
+        toggle.Value =
+            value == true
+
+        if toggle.Value then
+
+            Tween(
+                Switch,
+                {
+                    BackgroundColor3 =
+                        self.Library.Theme.Accent
+                }
+            )
+
+            Tween(
+                Knob,
+                {
+                    Position =
+                        UDim2.new(
+                            1,
+                            -19,
+                            0.5,
+                            0
+                        ),
+
+                    BackgroundColor3 =
+                        self.Library.Theme.White
+                }
+            )
+
+        else
+
+            Tween(
+                Switch,
+                {
+                    BackgroundColor3 =
+                        self.Library.Theme.ToggleOff
+                }
+            )
+
+            Tween(
+                Knob,
+                {
+                    Position =
+                        UDim2.new(
+                            0,
+                            3,
+                            0.5,
+                            0
+                        ),
+
+                    BackgroundColor3 =
+                        Color3.fromRGB(
+                            190,
+                            190,
+                            198
+                        )
+                }
+            )
+
+        end
+
+        if not silent then
+
+            toggle.Callback(
+                toggle.Value
+            )
+
+            toggle.Changed(
+                toggle.Value
+            )
+
+        end
+
+    end
+
+    function toggle:SetValue(
+        value
+    )
+
+        Update(value)
+
+    end
+
+    function toggle:GetValue()
+
+        return toggle.Value
+
+    end
+
+    function toggle:OnChanged(
+        callback
+    )
+
+        toggle.Changed =
+            callback
+
+        return toggle
+    end
+
+    Switch.MouseButton1Click:Connect(
+        function()
+
+            Update(
+                not toggle.Value
+            )
+
+        end
+    )
+
+    Update(
+        toggle.Value,
+        true
+    )
+
+    Library.Toggles[name] =
+        toggle
+
+    Library.Options[name] =
+        toggle
+
+    return toggle
+end
+
+------------------------------------------------------------
+-- KEY PICKER
+------------------------------------------------------------
+
+local KeyPicker = {}
+KeyPicker.__index = KeyPicker
+
+function Toggle:AddKeyPicker(
+    name,
+    info
+)
+
+    info = info or {}
+
+    local picker =
+        setmetatable(
+            {
+                Name = name,
+
+                Value =
+                    info.Default
+                    or info.Keybind
+                    or Enum.KeyCode.Unknown,
+
+                Mode =
+                    info.Mode
+                    or "Toggle",
+
+                Callback =
+                    info.Callback
+                    or function()
+                    end,
+
+                Changed =
+                    info.Changed
+                    or function()
+                    end
+            },
+            KeyPicker
+        )
+
+    picker:SetKey =
+        function(self, key)
+            self.Value = key
+
+            self.Changed(key)
+        end
+
+    picker:GetKey =
+        function(self)
+            return self.Value
+        end
+
+    Library.Options[name] =
+        picker
+
+    return picker
+end
+
+------------------------------------------------------------
+-- SLIDER
+------------------------------------------------------------
+
+local Slider = {}
+Slider.__index = Slider
+
+function Groupbox:AddSlider(
+    name,
+    info
+)
+
+    info = info or {}
+
+    local min =
+        tonumber(info.Min)
+        or 0
+
+    local max =
+        tonumber(info.Max)
+        or 100
+
+    local decimals =
+        tonumber(info.Rounding)
+
+    if decimals == nil then
+        decimals = 0
+    end
+
+    local default =
+        tonumber(info.Default)
+        or min
+
+    local slider =
+        setmetatable(
+            {
+                Name = name,
+
+                Min = min,
+
+                Max = max,
+
+                Value = default,
+
+                Rounding = decimals,
+
+                Callback =
+                    info.Callback
+                    or function()
+                    end,
+
+                Changed =
+                    info.Changed
+                    or function()
+                    end
+            },
+            Slider
+        )
+
+    local Holder =
+        Create(
+            "Frame",
+            {
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        62
+                    ),
+
+                BackgroundTransparency = 1
+            },
+            self.Container
+        )
+
+    Text(
+        Holder,
+        {
+            Size =
+                UDim2.new(
+                    1,
+                    -90,
+                    0,
+                    22
+                ),
+
+            Text =
+                info.Text
+                or info.Title
+                or name,
+
+            TextSize = 12,
+
+            TextColor3 =
+                self.Library.Theme.Text,
+
+            TextXAlignment =
+                Enum.TextXAlignment.Left
+        }
+    )
+
+    local ValueLabel =
+        Text(
+            Holder,
+            {
+                AnchorPoint =
+                    Vector2.new(
+                        1,
+                        0
+                    ),
+
+                Position =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        0
+                    ),
+
+                Size =
+                    UDim2.fromOffset(
+                        90,
+                        22
+                    ),
+
+                TextColor3 =
+                    self.Library.Theme.SecondaryText,
+
+                TextSize = 11,
+
+                Font =
+                    Enum.Font.GothamMedium,
+
+                TextXAlignment =
+                    Enum.TextXAlignment.Right
+            }
+        )
+
+    --------------------------------------------------------
+    -- SLIDER BAR
+    --------------------------------------------------------
+
+    local Bar =
+        Create(
+            "Frame",
+            {
+                Position =
+                    UDim2.fromOffset(
+                        0,
+                        35
+                    ),
+
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        6
+                    ),
+
+                BackgroundColor3 =
+                    self.Library.Theme.ToggleOff,
+
+                BorderSizePixel = 0
+            },
+            Holder
+        )
+
+    Corner(Bar, 4)
+
+    local Fill =
+        Create(
+            "Frame",
+            {
+                Size =
+                    UDim2.fromScale(
+                        0,
+                        1
+                    ),
+
+                BackgroundColor3 =
+                    self.Library.Theme.Accent,
+
+                BorderSizePixel = 0
+            },
+            Bar
+        )
+
+    Corner(Fill, 4)
+
+    local Knob =
+        Create(
+            "Frame",
+            {
+                AnchorPoint =
+                    Vector2.new(
+                        0.5,
+                        0.5
+                    ),
+
+                Position =
+                    UDim2.fromScale(
+                        0,
+                        0.5
+                    ),
+
+                Size =
+                    UDim2.fromOffset(
+                        16,
+                        16
+                    ),
+
+                BackgroundColor3 =
+                    self.Library.Theme.White,
+
+                BorderSizePixel = 0
+            },
+            Bar
+        )
+
+    Corner(Knob, 8)
+
+    Stroke(
+        Knob,
+        self.Library.Theme.Accent,
+        0.1
+    )
+
+    --------------------------------------------------------
+    -- ROUND
+    --------------------------------------------------------
+
+    local function RoundValue(
+        value
+    )
+
+        local power =
+            10 ^ decimals
+
+        value =
+            math.floor(
+                value * power
+                + 0.5
+            ) / power
+
+        return value
+    end
+
+    local function FormatValue(
+        value
+    )
+
+        if decimals <= 0 then
+
+            return tostring(
+                math.floor(
+                    value + 0.5
+                )
+            )
+
+        end
+
+        return string.format(
+            "%."
+                .. decimals
+                .. "f",
+            value
+        )
+    end
+
+    local function Set(
+        value,
+        silent
+    )
+
+        value =
+            tonumber(value)
+            or min
+
+        value =
+            math.clamp(
+                value,
+                min,
+                max
+            )
+
+        value =
+            RoundValue(value)
+
+        slider.Value =
+            value
+
+        local alpha = 0
+
+        if max ~= min then
+
+            alpha =
+                (value - min)
+                /
+                (max - min)
+
+        end
+
+        Tween(
+            Fill,
+            {
+                Size =
+                    UDim2.fromScale(
+                        alpha,
+                        1
+                    )
+            }
+        )
+
+        Tween(
+            Knob,
+            {
+                Position =
+                    UDim2.fromScale(
+                        alpha,
+                        0.5
+                    )
+            }
+        )
+
+        ValueLabel.Text =
+            tostring(
+                info.Prefix
+                or ""
+            )
+            ..
+            FormatValue(value)
+            ..
+            tostring(
+                info.Suffix
+                or ""
+            )
+
+        if not silent then
+
+            slider.Callback(
+                value
+            )
+
+            slider.Changed(
+                value
+            )
+
+        end
+    end
+
+    local dragging = false
+
+    local function FromMouse(
+        input
+    )
+
+        local x =
+            input.Position.X
+
+        local start =
+            Bar.AbsolutePosition.X
+
+        local width =
+            Bar.AbsoluteSize.X
+
+        if width <= 0 then
+            return
+        end
+
+        local alpha =
+            math.clamp(
+                (x - start)
+                / width,
+                0,
+                1
+            )
+
+        local value =
+            min
+            +
+            (
+                max - min
+            )
+            *
+            alpha
+
+        Set(value)
+
+    end
+
+    Bar.InputBegan:Connect(
+        function(input)
+
+            if input.UserInputType ==
+                Enum.UserInputType.MouseButton1 then
+
+                dragging = true
+
+                FromMouse(input)
+
+            end
+
+        end
+    )
+
+    UserInputService.InputChanged:Connect(
+        function(input)
+
+            if dragging
+                and
+                input.UserInputType ==
+                    Enum.UserInputType.MouseMovement then
+
+                FromMouse(input)
+
+            end
+
+        end
+    )
+
+    UserInputService.InputEnded:Connect(
+        function(input)
+
+            if input.UserInputType ==
+                Enum.UserInputType.MouseButton1 then
+
+                dragging = false
+
+            end
+
+        end
+    )
+
+    function slider:SetValue(
+        value
+    )
+
+        Set(value)
+
+    end
+
+    function slider:GetValue()
+
+        return slider.Value
+
+    end
+
+    function slider:OnChanged(
+        callback
+    )
+
+        slider.Changed =
+            callback
+
+        return slider
+    end
+
+    Set(
+        default,
+        true
+    )
+
+    Library.Options[name] =
+        slider
+
+    return slider
+end
+
+------------------------------------------------------------
+-- INPUT
+------------------------------------------------------------
+
+function Groupbox:AddInput(
+    name,
+    info
+)
+
+    info = info or {}
+
+    local Holder =
+        Create(
+            "Frame",
+            {
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        64
+                    ),
+
+                BackgroundTransparency = 1
+            },
+            self.Container
+        )
+
+    Text(
+        Holder,
+        {
+            Size =
+                UDim2.new(
+                    1,
+                    0,
+                    0,
+                    20
+                ),
+
+            Text =
+                info.Text
+                or name,
+
+            TextSize = 12,
+
+            TextXAlignment =
+                Enum.TextXAlignment.Left
+        }
+    )
+
+    local Input =
+        Create(
+            "TextBox",
+            {
+                Position =
+                    UDim2.fromOffset(
+                        0,
+                        27
+                    ),
+
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        34
+                    ),
+
+                BackgroundColor3 =
+                    self.Library.Theme.Element,
+
+                BorderSizePixel = 0,
+
+                Text =
+                    tostring(
+                        info.Default
+                        or ""
+                    ),
+
+                PlaceholderText =
+                    info.Placeholder
+                    or "",
+
+                PlaceholderColor3 =
+                    self.Library.Theme.MutedText,
+
+                TextColor3 =
+                    self.Library.Theme.Text,
+
+                Font =
+                    Enum.Font.Gotham,
+
+                TextSize = 12,
+
+                TextXAlignment =
+                    Enum.TextXAlignment.Left
+            },
+            Holder
+        )
+
+    Corner(Input, 9)
+
+    Stroke(
+        Input,
+        self.Library.Theme.Outline,
+        0.35
+    )
+
+    Padding(
+        Input,
+        10,
+        10,
+        0,
+        0
+    )
+
+    local object = {
+
+        Name = name,
+
+        Input = Input,
+
+        Value = Input.Text,
+
+        Callback =
+            info.Callback
+            or function()
+            end,
+
+        Changed =
+            info.Changed
+            or function()
+            end
+    }
+
+    function object:SetValue(
+        value
+    )
+
+        Input.Text =
+            tostring(value)
+
+        object.Value =
+            Input.Text
+
+        object.Callback(
+            object.Value
+        )
+
+    end
+
+    function object:GetValue()
+
+        return Input.Text
+
+    end
+
+    Input.FocusLost:Connect(
+        function()
+
+            object.Value =
+                Input.Text
+
+            object.Callback(
+                object.Value
+            )
+
+            object.Changed(
+                object.Value
+            )
+
+        end
+    )
+
+    Library.Options[name] =
+        object
+
+    return object
+end
+
+------------------------------------------------------------
+-- DROPDOWN
+------------------------------------------------------------
+
+function Groupbox:AddDropdown(
+    name,
+    info
+)
+
+    info = info or {}
+
+    local values =
+        info.Values
+        or {}
+
+    local current =
+        info.Default
+        or values[1]
+
+    local Holder =
+        Create(
+            "Frame",
+            {
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        42
+                    ),
+
+                BackgroundTransparency = 1,
+
+                ZIndex = 5
+            },
+            self.Container
+        )
+
+    Text(
+        Holder,
+        {
+            Size =
+                UDim2.new(
+                    0.42,
+                    0,
+                    1,
+                    0
+                ),
+
+            Text =
+                info.Text
+                or name,
+
+            TextSize = 12,
+
+            TextXAlignment =
+                Enum.TextXAlignment.Left,
+
+            TextYAlignment =
+                Enum.TextYAlignment.Center
+        }
+    )
+
+    local Button =
+        Create(
+            "TextButton",
+            {
+                AnchorPoint =
+                    Vector2.new(
+                        1,
+                        0.5
+                    ),
+
+                Position =
+                    UDim2.new(
+                        1,
+                        0,
+                        0.5,
+                        0
+                    ),
+
+                Size =
+                    UDim2.new(
+                        0.58,
+                        0,
+                        0,
+                        34
+                    ),
+
+                BackgroundColor3 =
+                    self.Library.Theme.Element,
+
+                BorderSizePixel = 0,
+
+                Text = "",
+
+                AutoButtonColor = false,
+
+                ZIndex = 10
+            },
+            Holder
+        )
+
+    Corner(Button, 9)
+
+    Stroke(
+        Button,
+        self.Library.Theme.Outline,
+        0.35
+    )
+
+    local Selected =
+        Text(
+            Button,
+            {
+                Position =
+                    UDim2.fromOffset(
+                        10,
+                        0
+                    ),
+
+                Size =
+                    UDim2.new(
+                        1,
+                        -30,
+                        1,
+                        0
+                    ),
+
+                Text =
+                    tostring(
+                        current
+                        or "Select"
+                    ),
+
+                TextSize = 11,
+
+                TextColor3 =
+                    self.Library.Theme.SecondaryText,
+
+                TextXAlignment =
+                    Enum.TextXAlignment.Left,
+
+                TextYAlignment =
+                    Enum.TextYAlignment.Center,
+
+                ZIndex = 11
+            }
+        )
+
+    local Arrow =
+        Text(
+            Button,
+            {
+                AnchorPoint =
+                    Vector2.new(
+                        1,
+                        0.5
+                    ),
+
+                Position =
+                    UDim2.new(
+                        1,
+                        -9,
+                        0.5,
+                        0
+                    ),
+
+                Size =
+                    UDim2.fromOffset(
+                        14,
+                        18
+                    ),
+
+                Text = "⌄",
+
+                TextSize = 13,
+
+                TextColor3 =
+                    self.Library.Theme.MutedText,
+
+                ZIndex = 11
+            }
+        )
+
+    local object = {
+
+        Name = name,
+
+        Values = values,
+
+        Value = current,
+
+        Callback =
+            info.Callback
+            or function()
+            end,
+
+        Changed =
+            info.Changed
+            or function()
+            end
+    }
+
+    function object:SetValue(
+        value
+    )
+
+        object.Value =
+            value
+
+        Selected.Text =
+            tostring(
+                value
+            )
+
+        object.Callback(
+            value
+        )
+
+        object.Changed(
+            value
+        )
+
+    end
+
+    function object:GetValue()
+
+        return object.Value
+
+    end
+
+    function object:SetValues(
+        newValues
+    )
+
+        object.Values =
+            newValues
+            or {}
+
+    end
+
+    function object:OnChanged(
+        callback
+    )
+
+        object.Changed =
+            callback
+
+        return object
+    end
+
+    Button.MouseButton1Click:Connect(
+        function()
+
+            object:SetValue(
+                object.Values[
+                    (
+                        table.find(
+                            object.Values,
+                            object.Value
+                        )
+                        or 0
+                    )
+                    % #object.Values
+                    + 1
+                ]
+            )
+
+        end
+    )
+
+    Library.Options[name] =
+        object
+
+    return object
+end
+
+------------------------------------------------------------
+-- NOTIFICATION
+------------------------------------------------------------
+
+function Library:Notify(
+    data
+)
+
+    if type(data) == "string" then
+
+        data = {
+            Description = data
+        }
+
+    end
+
+    data = data or {}
+
+    local notification =
+        Create(
+            "Frame",
+            {
+                AnchorPoint =
+                    Vector2.new(
+                        1,
+                        1
+                    ),
+
+                Position =
+                    UDim2.new(
+                        1,
+                        320,
+                        1,
+                        -20
+                    ),
+
+                Size =
+                    UDim2.fromOffset(
+                        310,
+                        78
+                    ),
+
+                BackgroundColor3 =
+                    self.Theme.Groupbox,
+
+                BorderSizePixel = 0,
+
+                ZIndex = 500
+            },
+            self.ScreenGui
+        )
+
+    Corner(notification, 12)
+
+    Stroke(
+        notification,
+        self.Theme.Outline,
+        0.1
+    )
+
+    Create(
+        "Frame",
+        {
+            Position =
+                UDim2.fromOffset(
+                    0,
+                    14
+                ),
+
+            Size =
+                UDim2.fromOffset(
+                    3,
+                    50
+                ),
+
+            BackgroundColor3 =
+                self.Theme.Accent,
+
+            BorderSizePixel = 0,
+
+            ZIndex = 501
+        },
+        notification
+    )
+
+    Text(
+        notification,
+        {
+            Position =
+                UDim2.fromOffset(
+                    15,
+                    10
+                ),
+
+            Size =
+                UDim2.new(
+                    1,
+                    -25,
+                    0,
+                    20
+                ),
+
+            Text =
+                data.Title
+                or "Notification",
+
+            Font =
+                Enum.Font.GothamBold,
+
+            TextSize = 12,
+
+            ZIndex = 502
+        }
+    )
+
+    Text(
+        notification,
+        {
+            Position =
+                UDim2.fromOffset(
+                    15,
+                    33
+                ),
+
+            Size =
+                UDim2.new(
+                    1,
+                    -25,
+                    0,
+                    34
+                ),
+
+            Text =
+                data.Description
+                or data.Content
+                or "",
+
+            TextColor3 =
+                self.Theme.SecondaryText,
+
+            Font =
+                Enum.Font.Gotham,
+
+            TextSize = 11,
+
+            TextWrapped = true,
+
+            TextXAlignment =
+                Enum.TextXAlignment.Left,
+
+            TextYAlignment =
+                Enum.TextYAlignment.Top,
+
+            ZIndex = 502
+        }
+    )
+
+    Tween(
+        notification,
+        {
+            Position =
+                UDim2.new(
+                    1,
+                    -20,
+                    1,
+                    -20
+                )
+        }
+    )
+
+    task.delay(
+        data.Time
+        or data.Duration
+        or 3,
+        function()
+
+            if notification
+                and notification.Parent then
+
+                Tween(
+                    notification,
+                    {
+                        Position =
+                            UDim2.new(
+                                1,
+                                320,
+                                1,
+                                -20
+                            )
+                    }
+                )
+
+                task.wait(0.18)
+
+                notification:Destroy()
+
+            end
+
+        end
+    )
+
+    return notification
 end
 
 ------------------------------------------------------------
@@ -976,50 +3231,16 @@ function Library:SetAccent(
     color
 )
 
-    if typeof(color) ~= "Color3" then
+    if typeof(color) ~=
+        "Color3" then
         return
     end
 
-    self.Scheme.AccentColor =
+    self.Theme.Accent =
         color
 
-    pcall(function()
-
-        Fluent:SetTheme({
-            Accent = color
-        })
-
-    end)
-
-end
-
-------------------------------------------------------------
--- NOTIFY
-------------------------------------------------------------
-
-function Library:Notify(
-    data
-)
-
-    data = data or {}
-
-    return Fluent:Notify({
-
-        Title =
-            data.Title
-            or "Notification",
-
-        Content =
-            data.Description
-            or data.Content
-            or "",
-
-        Duration =
-            data.Time
-            or data.Duration
-            or 4
-
-    })
+    self.Scheme.Accent =
+        color
 
 end
 
@@ -1029,10 +3250,10 @@ end
 
 function Library:Toggle()
 
-    if self.Window
-        and self.Window.Minimize then
+    if self.Window then
 
-        self.Window:Minimize()
+        self.Window.Visible =
+            not self.Window.Visible
 
     end
 
@@ -1050,21 +3271,24 @@ end
 
 function Library:Unload()
 
-    if self.Window
-        and self.Window.Destroy then
-
-        self.Window:Destroy()
-
-    elseif Fluent.Destroy then
-
-        Fluent:Destroy()
-
+    if self.Unloaded then
+        return
     end
 
-end
+    self.Unloaded = true
 
-------------------------------------------------------------
--- RETURN
-------------------------------------------------------------
+    if self.ScreenGui then
+        self.ScreenGui:Destroy()
+    end
+
+    self.ScreenGui = nil
+    self.Window = nil
+
+    self.Options = {}
+    self.Toggles = {}
+    self.Registry = {}
+    self.Tabs = {}
+
+end
 
 return Library
