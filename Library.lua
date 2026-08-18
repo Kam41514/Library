@@ -1,63 +1,89 @@
---// Modern Obsidian Library
---// Kam41514
---// API: Original Obsidian
---// UI: Modern / Rounded / Clean
+--[[
+    Kam41514 Modern Library
+    Obsidian-compatible visual skin
 
-local HttpGet = game.HttpGet
+    API değiştirilmez.
+    CreateWindow / AddTab / Groupbox / Toggle / Slider /
+    Dropdown / Button / Input / ThemeManager / SaveManager
+    Obsidian ile uyumlu kalır.
+]]
+
+------------------------------------------------------------
+-- LOAD ORIGINAL OBSIDIAN LIBRARY
+------------------------------------------------------------
 
 local OBSIDIAN_URL =
     "https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/Library.lua"
 
-----------------------------------------------------------------
--- LOAD ORIGINAL OBSIDIAN
-----------------------------------------------------------------
-
-local Success, Result = pcall(function()
-    return loadstring(
-        HttpGet(game, OBSIDIAN_URL)
-    )()
+local ok, result = pcall(function()
+    return loadstring(game:HttpGet(OBSIDIAN_URL))()
 end)
 
-if not Success then
-    error(
-        "[ModernLibrary] Obsidian Library yüklenemedi:\n"
-        .. tostring(Result)
-    )
+if not ok or type(result) ~= "table" then
+    error("[ModernLibrary] Obsidian Library yüklenemedi: " .. tostring(result))
 end
 
-local Library = Result
+local Library = result
 
-----------------------------------------------------------------
--- MODERN THEME
-----------------------------------------------------------------
+------------------------------------------------------------
+-- SERVICES
+------------------------------------------------------------
 
-Library.Scheme = {
-    BackgroundColor = Color3.fromRGB(10, 11, 15),
-    MainColor = Color3.fromRGB(18, 19, 26),
+local TweenService = game:GetService("TweenService")
 
-    AccentColor = Color3.fromRGB(139, 92, 246),
+------------------------------------------------------------
+-- MODERN PALETTE
+------------------------------------------------------------
 
-    OutlineColor = Color3.fromRGB(43, 45, 56),
+local Colors = {
+    Background = Color3.fromRGB(8, 9, 13),
+    Main = Color3.fromRGB(14, 15, 21),
 
-    FontColor = Color3.fromRGB(242, 242, 247),
+    Sidebar = Color3.fromRGB(11, 12, 17),
+    Content = Color3.fromRGB(12, 13, 18),
 
-    -- Daha okunaklı
-    Font = Font.fromEnum(Enum.Font.Gotham),
+    Card = Color3.fromRGB(19, 20, 28),
+    CardHover = Color3.fromRGB(24, 25, 35),
 
-    RedColor = Color3.fromRGB(255, 82, 95),
-    DestructiveColor = Color3.fromRGB(220, 65, 78),
+    Element = Color3.fromRGB(24, 25, 34),
+    ElementHover = Color3.fromRGB(31, 32, 43),
 
-    DarkColor = Color3.fromRGB(7, 8, 11),
-    WhiteColor = Color3.fromRGB(255, 255, 255),
+    Accent = Color3.fromRGB(139, 92, 246),
+    AccentLight = Color3.fromRGB(167, 139, 250),
 
-    BackgroundImage = "",
+    Text = Color3.fromRGB(245, 245, 250),
+    SecondaryText = Color3.fromRGB(164, 166, 180),
+
+    Border = Color3.fromRGB(43, 45, 58),
+
+    Success = Color3.fromRGB(74, 222, 128),
+    Red = Color3.fromRGB(248, 113, 113),
 }
 
-----------------------------------------------------------------
--- MODERN SETTINGS
-----------------------------------------------------------------
+------------------------------------------------------------
+-- SCHEME
+------------------------------------------------------------
 
-Library.CornerRadius = 14
+-- ÖNEMLİ:
+-- Scheme tablosunu değiştirmiyoruz.
+-- Mevcut ThemeManager referansları korunuyor.
+
+Library.Scheme.BackgroundColor = Colors.Background
+Library.Scheme.MainColor = Colors.Main
+Library.Scheme.AccentColor = Colors.Accent
+Library.Scheme.OutlineColor = Colors.Border
+Library.Scheme.FontColor = Colors.Text
+Library.Scheme.RedColor = Colors.Red
+Library.Scheme.DestructiveColor = Color3.fromRGB(220, 70, 80)
+Library.Scheme.DarkColor = Color3.fromRGB(5, 6, 9)
+Library.Scheme.WhiteColor = Color3.fromRGB(255, 255, 255)
+
+-- Daha okunaklı font
+Library.Scheme.Font = Font.fromEnum(Enum.Font.Gotham)
+
+------------------------------------------------------------
+-- ANIMATION
+------------------------------------------------------------
 
 Library.TweenInfo = TweenInfo.new(
     0.16,
@@ -71,285 +97,727 @@ Library.TabTransitionInfo = TweenInfo.new(
     Enum.EasingDirection.Out
 )
 
+Library.GroupboxTweenInfo = TweenInfo.new(
+    0.22,
+    Enum.EasingStyle.Quart,
+    Enum.EasingDirection.Out
+)
+
 Library.DropdownTransitionInfo = TweenInfo.new(
     0.18,
     Enum.EasingStyle.Quart,
     Enum.EasingDirection.Out
 )
 
-Library.GroupboxTweenInfo = TweenInfo.new(
-    0.18,
-    Enum.EasingStyle.Quart,
-    Enum.EasingDirection.Out
-)
-
-----------------------------------------------------------------
--- COLORS
-----------------------------------------------------------------
-
-local COLORS = {
-    Background = Color3.fromRGB(10, 11, 15),
-    Sidebar = Color3.fromRGB(13, 14, 19),
-
-    Panel = Color3.fromRGB(18, 19, 26),
-    Panel2 = Color3.fromRGB(21, 22, 30),
-
-    Element = Color3.fromRGB(24, 25, 34),
-    ElementHover = Color3.fromRGB(30, 31, 42),
-
-    Border = Color3.fromRGB(43, 45, 56),
-
-    Text = Color3.fromRGB(242, 242, 247),
-    SubText = Color3.fromRGB(155, 157, 170),
-
-    Accent = Color3.fromRGB(139, 92, 246),
-}
-
-----------------------------------------------------------------
+------------------------------------------------------------
 -- HELPERS
-----------------------------------------------------------------
+------------------------------------------------------------
 
-local function Corner(Object, Radius)
-    if not Object then
+local function AddCorner(Object, Radius)
+
+    if not Object or not Object:IsA("GuiObject") then
         return
     end
 
-    if not Object:IsA("GuiObject") then
-        return
+    local Corner = Object:FindFirstChild("ModernCorner")
+
+    if not Corner then
+        Corner = Instance.new("UICorner")
+        Corner.Name = "ModernCorner"
+        Corner.Parent = Object
     end
 
-    local Existing = Object:FindFirstChild("ModernCorner")
-
-    if not Existing then
-        Existing = Instance.new("UICorner")
-        Existing.Name = "ModernCorner"
-        Existing.Parent = Object
-    end
-
-    Existing.CornerRadius = UDim.new(0, Radius)
+    Corner.CornerRadius = UDim.new(0, Radius)
 end
 
-local function Stroke(Object, Color, Transparency)
-    if not Object then
+
+local function AddStroke(Object, Color, Transparency)
+
+    if not Object or not Object:IsA("GuiObject") then
         return
     end
 
-    if not Object:IsA("GuiObject") then
-        return
+    local Stroke = Object:FindFirstChild("ModernStroke")
+
+    if not Stroke then
+        Stroke = Instance.new("UIStroke")
+        Stroke.Name = "ModernStroke"
+        Stroke.Parent = Object
     end
 
-    local Existing = Object:FindFirstChild("ModernStroke")
-
-    if not Existing then
-        Existing = Instance.new("UIStroke")
-        Existing.Name = "ModernStroke"
-        Existing.Parent = Object
-    end
-
-    Existing.Color = Color or COLORS.Border
-    Existing.Transparency = Transparency or 0.25
-    Existing.Thickness = 1
+    Stroke.Color = Color or Colors.Border
+    Stroke.Transparency = Transparency or 0.2
+    Stroke.Thickness = 1
 end
 
-local function Style(Object)
+
+local function Tween(Object, Properties)
+
     if not Object then
         return
     end
 
-    if Object:IsA("TextLabel") then
+    local Animation = TweenService:Create(
+        Object,
+        Library.TweenInfo,
+        Properties
+    )
 
-        Object.FontFace = Library.Scheme.Font
-        Object.TextColor3 = COLORS.Text
+    Animation:Play()
 
-    elseif Object:IsA("TextButton") then
+    return Animation
+end
 
-        Object.FontFace = Library.Scheme.Font
-        Object.TextColor3 = COLORS.Text
+------------------------------------------------------------
+-- TEXT STYLE
+------------------------------------------------------------
 
-        Corner(Object, 9)
+local function StyleText(Object)
+
+    if Object:IsA("TextLabel")
+        or Object:IsA("TextButton")
+        or Object:IsA("TextBox") then
+
+        pcall(function()
+            Object.FontFace = Library.Scheme.Font
+        end)
+
+        if Object.TextSize < 12 then
+            Object.TextSize = 13
+        end
+    end
+end
+
+------------------------------------------------------------
+-- ELEMENT STYLE
+------------------------------------------------------------
+
+local function StyleElement(Object)
+
+    if not Object or not Object:IsA("GuiObject") then
+        return
+    end
+
+    StyleText(Object)
+
+    --------------------------------------------------------
+    -- INPUT / DROPDOWN / BUTTON
+    --------------------------------------------------------
+
+    if Object:IsA("TextButton") then
+
+        AddCorner(Object, 9)
+
+        Object.MouseEnter:Connect(function()
+
+            if Object.Visible then
+
+                local Original =
+                    Object:GetAttribute("ModernOriginalColor")
+
+                if not Original then
+                    Object:SetAttribute(
+                        "ModernOriginalColor",
+                        Object.BackgroundColor3
+                    )
+                end
+
+                Tween(Object, {
+                    BackgroundColor3 = Colors.ElementHover
+                })
+
+            end
+
+        end)
+
+        Object.MouseLeave:Connect(function()
+
+            local Original =
+                Object:GetAttribute("ModernOriginalColor")
+
+            if Original then
+                Tween(Object, {
+                    BackgroundColor3 = Color3.fromRGB(
+                        Original,
+                        Original,
+                        Original
+                    )
+                })
+            end
+
+        end)
 
     elseif Object:IsA("TextBox") then
 
-        Object.FontFace = Library.Scheme.Font
-        Object.TextColor3 = COLORS.Text
+        AddCorner(Object, 9)
+        AddStroke(Object, Colors.Border, 0.15)
 
-        Corner(Object, 9)
-        Stroke(Object, COLORS.Border, 0.3)
+        Object.Focused:Connect(function()
 
-    elseif Object:IsA("ScrollingFrame") then
+            Tween(Object, {
+                BackgroundColor3 = Colors.ElementHover
+            })
 
-        Object.ScrollBarThickness = 3
-        Object.ScrollBarImageColor3 = COLORS.Accent
-        Object.ScrollBarImageTransparency = 0.25
+            local Stroke =
+                Object:FindFirstChild("ModernStroke")
+
+            if Stroke then
+                Tween(Stroke, {
+                    Color = Colors.Accent,
+                    Transparency = 0
+                })
+            end
+
+        end)
+
+        Object.FocusLost:Connect(function()
+
+            Tween(Object, {
+                BackgroundColor3 = Colors.Element
+            })
+
+            local Stroke =
+                Object:FindFirstChild("ModernStroke")
+
+            if Stroke then
+                Tween(Stroke, {
+                    Color = Colors.Border,
+                    Transparency = 0.15
+                })
+            end
+
+        end)
 
     end
 end
 
-----------------------------------------------------------------
--- STYLE ENTIRE GUI
-----------------------------------------------------------------
+------------------------------------------------------------
+-- STYLE GROUPBOX
+------------------------------------------------------------
 
-local function StyleTree(Root)
-    if not Root then
+local function StyleGroupbox(Groupbox)
+
+    if not Groupbox or not Groupbox.Holder then
         return
     end
 
-    Style(Root)
+    local Holder = Groupbox.Holder
 
-    for _, Object in ipairs(Root:GetDescendants()) do
-        Style(Object)
+    --------------------------------------------------------
+    -- CARD
+    --------------------------------------------------------
+
+    Holder.BackgroundColor3 = Colors.Card
+
+    AddCorner(
+        Holder,
+        15
+    )
+
+    AddStroke(
+        Holder,
+        Colors.Border,
+        0.15
+    )
+
+    --------------------------------------------------------
+    -- HEADER
+    --------------------------------------------------------
+
+    local Children = Holder:GetChildren()
+
+    for _, Child in ipairs(Children) do
+
+        if Child:IsA("TextLabel") then
+
+            Child.FontFace = Library.Scheme.Font
+
+            if Child.TextSize < 14 then
+                Child.TextSize = 14
+            end
+
+            Child.TextColor3 = Colors.Text
+
+        elseif Child:IsA("ImageLabel") then
+
+            if Child.Size.X.Offset <= 24
+                and Child.Size.Y.Offset <= 24 then
+
+                Child.ImageColor3 = Colors.AccentLight
+
+            end
+
+        end
+
     end
+
+    --------------------------------------------------------
+    -- CONTENT
+    --------------------------------------------------------
+
+    if Groupbox.Container then
+
+        for _, Object in ipairs(
+            Groupbox.Container:GetDescendants()
+        ) do
+
+            StyleElement(Object)
+
+        end
+
+    end
+
 end
 
-----------------------------------------------------------------
--- FIND MAIN GUI
-----------------------------------------------------------------
+------------------------------------------------------------
+-- STYLE TAB BUTTON
+------------------------------------------------------------
 
-local function GetRoot()
-    return Library.WindowContainer
-        or Library.Window
-        or Library.ScreenGui
+local function StyleTabButton(Button)
+
+    if not Button then
+        return
+    end
+
+    AddCorner(
+        Button,
+        10
+    )
+
+    Button.BackgroundColor3 =
+        Colors.Element
+
+    Button.BackgroundTransparency = 1
+
+    --------------------------------------------------------
+    -- LABEL
+    --------------------------------------------------------
+
+    local Label = Button:FindFirstChildWhichIsA(
+        "TextLabel",
+        true
+    )
+
+    if Label then
+
+        Label.FontFace =
+            Library.Scheme.Font
+
+        Label.TextSize = 14
+        Label.TextColor3 =
+            Colors.Text
+
+    end
+
+    --------------------------------------------------------
+    -- ICON
+    --------------------------------------------------------
+
+    local Icon = Button:FindFirstChildWhichIsA(
+        "ImageLabel",
+        true
+    )
+
+    if Icon then
+        Icon.ImageColor3 =
+            Colors.AccentLight
+    end
+
 end
 
-----------------------------------------------------------------
--- MODERNIZE WINDOW
-----------------------------------------------------------------
+------------------------------------------------------------
+-- MODERN TAB SELECTION
+------------------------------------------------------------
 
-local OldCreateWindow = Library.CreateWindow
+local function SetupTabAnimations()
 
-Library.CreateWindow = function(self, Options)
+    for _, Entry in ipairs(Library.TabButtons) do
 
-    Options = Options or {}
+        local Label = Entry.Label
 
-    ------------------------------------------------------------
-    -- Modern defaults
-    ------------------------------------------------------------
+        if not Label then
+            continue
+        end
 
-    Options.Size =
-        Options.Size
-        or UDim2.fromOffset(900, 600)
+        local Button = Label.Parent
 
-    Options.CornerRadius =
-        Options.CornerRadius
-        or 14
+        if not Button then
+            continue
+        end
 
-    Options.Font =
-        Options.Font
-        or Enum.Font.Gotham
+        StyleTabButton(Button)
 
-    Options.Center =
-        Options.Center ~= false
+        ----------------------------------------------------
+        -- ACTIVE INDICATOR
+        ----------------------------------------------------
 
-    Options.AutoShow =
-        Options.AutoShow ~= false
+        local Indicator =
+            Button:FindFirstChild("ModernIndicator")
 
-    Options.NotifySide =
-        Options.NotifySide
-        or "Right"
+        if not Indicator then
 
-    ------------------------------------------------------------
-    -- Create ORIGINAL Obsidian Window
-    ------------------------------------------------------------
+            Indicator = Instance.new("Frame")
+            Indicator.Name = "ModernIndicator"
 
-    local Window = OldCreateWindow(self, Options)
+            Indicator.AnchorPoint =
+                Vector2.new(0, 0.5)
 
-    ------------------------------------------------------------
-    -- Style after construction
-    ------------------------------------------------------------
+            Indicator.Position =
+                UDim2.new(0, 4, 0.5, 0)
+
+            Indicator.Size =
+                UDim2.fromOffset(3, 22)
+
+            Indicator.BackgroundColor3 =
+                Colors.Accent
+
+            Indicator.BorderSizePixel = 0
+
+            Indicator.BackgroundTransparency = 1
+
+            Indicator.Parent = Button
+
+            AddCorner(
+                Indicator,
+                3
+            )
+
+        end
+
+        ----------------------------------------------------
+        -- HOVER
+        ----------------------------------------------------
+
+        Button.MouseEnter:Connect(function()
+
+            if Library.ActiveTab then
+
+                local ActiveLabel =
+                    Library.ActiveTab
+
+                if Label.Text ~= ActiveLabel.Name then
+
+                    Tween(Button, {
+                        BackgroundTransparency = 0.65
+                    })
+
+                end
+
+            end
+
+        end)
+
+        Button.MouseLeave:Connect(function()
+
+            if Library.ActiveTab then
+
+                Tween(Button, {
+                    BackgroundTransparency = 1
+                })
+
+            end
+
+        end)
+
+        ----------------------------------------------------
+        -- CLICK
+        ----------------------------------------------------
+
+        Button.MouseButton1Click:Connect(function()
+
+            for _, Other in ipairs(
+                Library.TabButtons
+            ) do
+
+                if Other.Label then
+
+                    local OtherButton =
+                        Other.Label.Parent
+
+                    if OtherButton then
+
+                        local OtherIndicator =
+                            OtherButton:FindFirstChild(
+                                "ModernIndicator"
+                            )
+
+                        Tween(
+                            OtherButton,
+                            {
+                                BackgroundTransparency = 1
+                            }
+                        )
+
+                        if OtherIndicator then
+
+                            Tween(
+                                OtherIndicator,
+                                {
+                                    BackgroundTransparency = 1
+                                }
+                            )
+
+                        end
+
+                    end
+
+                end
+
+            end
+
+            Tween(
+                Button,
+                {
+                    BackgroundTransparency = 0
+                }
+            )
+
+            Tween(
+                Indicator,
+                {
+                    BackgroundTransparency = 0
+                }
+            )
+
+        end)
+
+    end
+
+end
+
+------------------------------------------------------------
+-- STYLE WINDOW
+------------------------------------------------------------
+
+local function StyleWindow()
+
+    local MainFrame = Library.WindowContainer
+
+    if not MainFrame then
+        return
+    end
+
+    -- WindowContainer'ın parent'ı ana frame'dir.
+    local WindowFrame = MainFrame.Parent
+
+    --------------------------------------------------------
+    -- WINDOW
+    --------------------------------------------------------
+
+    if WindowFrame and WindowFrame:IsA("GuiObject") then
+
+        WindowFrame.BackgroundColor3 =
+            Colors.Main
+
+        AddCorner(
+            WindowFrame,
+            20
+        )
+
+        AddStroke(
+            WindowFrame,
+            Colors.Border,
+            0.05
+        )
+
+    end
+
+    --------------------------------------------------------
+    -- CONTENT
+    --------------------------------------------------------
+
+    MainFrame.BackgroundColor3 =
+        Colors.Content
+
+    --------------------------------------------------------
+    -- CHILDREN
+    --------------------------------------------------------
+
+    for _, Object in ipairs(
+        MainFrame:GetDescendants()
+    ) do
+
+        StyleText(Object)
+
+        if Object:IsA("TextBox") then
+
+            AddCorner(
+                Object,
+                9
+            )
+
+            AddStroke(
+                Object,
+                Colors.Border,
+                0.15
+            )
+
+        end
+
+    end
+
+    --------------------------------------------------------
+    -- SIDEBAR
+    --------------------------------------------------------
+
+    if WindowFrame then
+
+        for _, Object in ipairs(
+            WindowFrame:GetChildren()
+        ) do
+
+            if Object:IsA("ScrollingFrame") then
+
+                Object.BackgroundColor3 =
+                    Colors.Sidebar
+
+            end
+
+        end
+
+    end
+
+    --------------------------------------------------------
+    -- GROUPBOXES
+    --------------------------------------------------------
+
+    for _, Tab in pairs(
+        Library.Tabs
+    ) do
+
+        if Tab.Groupboxes then
+
+            for _, Groupbox in pairs(
+                Tab.Groupboxes
+            ) do
+
+                StyleGroupbox(
+                    Groupbox
+                )
+
+            end
+
+        end
+
+    end
+
+    --------------------------------------------------------
+    -- TABS
+    --------------------------------------------------------
+
+    SetupTabAnimations()
+
+end
+
+------------------------------------------------------------
+-- ORIGINAL CREATE WINDOW
+------------------------------------------------------------
+
+local OriginalCreateWindow =
+    Library.CreateWindow
+
+Library.CreateWindow = function(
+    self,
+    WindowInfo
+)
+
+    WindowInfo =
+        WindowInfo or {}
+
+    --------------------------------------------------------
+    -- MODERN DEFAULTS
+    --------------------------------------------------------
+
+    if WindowInfo.Size == nil then
+
+        WindowInfo.Size =
+            UDim2.fromOffset(
+                1050,
+                680
+            )
+
+    end
+
+    if WindowInfo.Font == nil then
+        WindowInfo.Font =
+            Enum.Font.Gotham
+    end
+
+    if WindowInfo.CornerRadius == nil then
+        WindowInfo.CornerRadius = 18
+    end
+
+    if WindowInfo.MinContainerWidth == nil then
+        WindowInfo.MinContainerWidth = 700
+    end
+
+    WindowInfo.Animations = {
+        ToggleWindow = true,
+        TabSwitch = true,
+        Groupbox = true,
+        Dropdown = true,
+        KeyPicker = true,
+    }
+
+    WindowInfo.TabTransitionTime = 0.18
+
+    WindowInfo.TabSwipeOffset = 18
+
+    WindowInfo.TabSwipeFrom = "right"
+
+    --------------------------------------------------------
+    -- CREATE ORIGINAL WINDOW
+    --------------------------------------------------------
+
+    local Window =
+        OriginalCreateWindow(
+            self,
+            WindowInfo
+        )
+
+    --------------------------------------------------------
+    -- WAIT FOR UI
+    --------------------------------------------------------
 
     task.defer(function()
 
-        task.wait()
+        task.wait(0.05)
 
-        local Root = GetRoot()
+        StyleWindow()
 
-        if Root then
-            StyleTree(Root)
-        end
+        ----------------------------------------------------
+        -- REAPPLY AFTER ALL HUB ELEMENTS ARE CREATED
+        ----------------------------------------------------
 
-        --------------------------------------------------------
-        -- Window
-        --------------------------------------------------------
+        task.wait(0.25)
 
-        if Library.WindowContainer then
-            Corner(
-                Library.WindowContainer,
-                18
-            )
-
-            Stroke(
-                Library.WindowContainer,
-                COLORS.Border,
-                0.20
-            )
-        end
-
-        --------------------------------------------------------
-        -- Live elements
-        --------------------------------------------------------
-
-        if Root then
-
-            Root.DescendantAdded:Connect(function(Object)
-
-                task.defer(function()
-
-                    if Object and Object.Parent then
-                        Style(Object)
-
-                        for _, Child in ipairs(
-                            Object:GetDescendants()
-                        ) do
-                            Style(Child)
-                        end
-                    end
-
-                end)
-
-            end)
-
-        end
+        StyleWindow()
 
     end)
 
     return Window
+
 end
 
-----------------------------------------------------------------
+------------------------------------------------------------
 -- PUBLIC MODERN STYLE
-----------------------------------------------------------------
+------------------------------------------------------------
 
 function Library:ApplyModernStyle()
 
-    local Root = GetRoot()
+    task.defer(function()
 
-    if not Root then
-        return false
-    end
+        StyleWindow()
 
-    StyleTree(Root)
-
-    if Library.WindowContainer then
-
-        Corner(
-            Library.WindowContainer,
-            18
-        )
-
-        Stroke(
-            Library.WindowContainer,
-            COLORS.Border,
-            0.20
-        )
-
-    end
+    end)
 
     return true
+
 end
 
-----------------------------------------------------------------
--- ACCENT
-----------------------------------------------------------------
+------------------------------------------------------------
+-- ACCENT API
+------------------------------------------------------------
 
 function Library:SetModernAccent(Color)
 
@@ -357,21 +825,29 @@ function Library:SetModernAccent(Color)
         return false
     end
 
-    COLORS.Accent = Color
-    Library.Scheme.AccentColor = Color
+    Colors.Accent = Color
+    Colors.AccentLight = Color:Lerp(
+        Color3.new(1, 1, 1),
+        0.25
+    )
+
+    Library.Scheme.AccentColor =
+        Color
 
     return true
+
 end
 
-----------------------------------------------------------------
--- VERSION
-----------------------------------------------------------------
+------------------------------------------------------------
+-- MODERN INFO
+------------------------------------------------------------
 
 Library.Modern = true
-Library.ModernVersion = "2.0"
+Library.ModernVersion = "3.0"
+Library.ModernColors = Colors
 
-----------------------------------------------------------------
--- RETURN REAL OBSIDIAN LIBRARY
-----------------------------------------------------------------
+------------------------------------------------------------
+-- RETURN ORIGINAL API OBJECT
+------------------------------------------------------------
 
 return Library
