@@ -1,410 +1,313 @@
---[[
-    Modern Obsidian UI
-    ------------------
-    Obsidian API korunur.
-    Sadece GUI görünümü modern / rounded hale getirilir.
+--// Modern Obsidian Library
+--// Kam41514
+--// API: Original Obsidian
+--// UI: Modern / Rounded / Clean
 
-    Usage:
-
-        local Library = loadstring(game:HttpGet(
-            "https://raw.githubusercontent.com/YOURNAME/ModernObsidian/main/Library.lua"
-        ))()
-
-        local Window = Library:CreateWindow({
-            Title = "My Script",
-            Footer = "v1.0",
-            Center = true,
-            AutoShow = true,
-            Size = UDim2.fromOffset(850, 600),
-        })
-
-        local Tab = Window:AddTab("Main")
-
-        local Left = Tab:AddLeftGroupbox("Combat")
-        local Right = Tab:AddRightGroupbox("Visuals")
-
-        Left:AddToggle("Aimbot", {
-            Text = "Aimbot",
-            Default = false,
-        })
-
-        Right:AddToggle("ESP", {
-            Text = "ESP",
-            Default = true,
-        })
-]]
-
-local HttpService = game:GetService("HttpService")
-local TweenService = game:GetService("TweenService")
-
-------------------------------------------------------------
--- LOAD ORIGINAL OBSIDIAN
-------------------------------------------------------------
+local HttpGet = game.HttpGet
 
 local OBSIDIAN_URL =
-    "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/Library.lua"
+    "https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/Library.lua"
 
-local Library = loadstring(game:HttpGet(OBSIDIAN_URL))()
+----------------------------------------------------------------
+-- LOAD ORIGINAL OBSIDIAN
+----------------------------------------------------------------
 
-------------------------------------------------------------
--- MODERN SETTINGS
-------------------------------------------------------------
+local Success, Result = pcall(function()
+    return loadstring(
+        HttpGet(game, OBSIDIAN_URL)
+    )()
+end)
 
-Library.CornerRadius = 14
+if not Success then
+    error(
+        "[ModernLibrary] Obsidian Library yüklenemedi:\n"
+        .. tostring(Result)
+    )
+end
+
+local Library = Result
+
+----------------------------------------------------------------
+-- MODERN THEME
+----------------------------------------------------------------
 
 Library.Scheme = {
     BackgroundColor = Color3.fromRGB(10, 11, 15),
-    MainColor = Color3.fromRGB(18, 19, 25),
+    MainColor = Color3.fromRGB(18, 19, 26),
 
     AccentColor = Color3.fromRGB(139, 92, 246),
 
-    OutlineColor = Color3.fromRGB(43, 45, 55),
+    OutlineColor = Color3.fromRGB(43, 45, 56),
 
-    FontColor = Color3.fromRGB(238, 238, 245),
+    FontColor = Color3.fromRGB(242, 242, 247),
 
+    -- Daha okunaklı
     Font = Font.fromEnum(Enum.Font.Gotham),
 
-    RedColor = Color3.fromRGB(255, 80, 90),
-    DestructiveColor = Color3.fromRGB(225, 60, 70),
+    RedColor = Color3.fromRGB(255, 82, 95),
+    DestructiveColor = Color3.fromRGB(220, 65, 78),
 
-    DarkColor = Color3.fromRGB(8, 8, 11),
+    DarkColor = Color3.fromRGB(7, 8, 11),
     WhiteColor = Color3.fromRGB(255, 255, 255),
 
     BackgroundImage = "",
 }
 
-------------------------------------------------------------
--- UI CONSTANTS
-------------------------------------------------------------
+----------------------------------------------------------------
+-- MODERN SETTINGS
+----------------------------------------------------------------
 
-local RADIUS = {
-    Window = 18,
-    Sidebar = 16,
-    Groupbox = 15,
-    Element = 10,
-    Button = 10,
-    Input = 10,
-    Dropdown = 10,
-    Toggle = 999,
-    Notification = 14,
-    Tab = 10,
-}
+Library.CornerRadius = 14
+
+Library.TweenInfo = TweenInfo.new(
+    0.16,
+    Enum.EasingStyle.Quart,
+    Enum.EasingDirection.Out
+)
+
+Library.TabTransitionInfo = TweenInfo.new(
+    0.20,
+    Enum.EasingStyle.Quart,
+    Enum.EasingDirection.Out
+)
+
+Library.DropdownTransitionInfo = TweenInfo.new(
+    0.18,
+    Enum.EasingStyle.Quart,
+    Enum.EasingDirection.Out
+)
+
+Library.GroupboxTweenInfo = TweenInfo.new(
+    0.18,
+    Enum.EasingStyle.Quart,
+    Enum.EasingDirection.Out
+)
+
+----------------------------------------------------------------
+-- COLORS
+----------------------------------------------------------------
 
 local COLORS = {
-    Window = Color3.fromRGB(10, 11, 15),
+    Background = Color3.fromRGB(10, 11, 15),
     Sidebar = Color3.fromRGB(13, 14, 19),
 
-    Groupbox = Color3.fromRGB(18, 19, 25),
-    GroupboxInner = Color3.fromRGB(21, 22, 29),
+    Panel = Color3.fromRGB(18, 19, 26),
+    Panel2 = Color3.fromRGB(21, 22, 30),
 
-    Element = Color3.fromRGB(24, 25, 33),
-    ElementHover = Color3.fromRGB(29, 30, 40),
+    Element = Color3.fromRGB(24, 25, 34),
+    ElementHover = Color3.fromRGB(30, 31, 42),
 
-    Border = Color3.fromRGB(42, 44, 55),
+    Border = Color3.fromRGB(43, 45, 56),
 
-    Text = Color3.fromRGB(238, 238, 245),
-    SubText = Color3.fromRGB(150, 152, 165),
+    Text = Color3.fromRGB(242, 242, 247),
+    SubText = Color3.fromRGB(155, 157, 170),
 
     Accent = Color3.fromRGB(139, 92, 246),
 }
 
-------------------------------------------------------------
+----------------------------------------------------------------
 -- HELPERS
-------------------------------------------------------------
+----------------------------------------------------------------
 
-local function addCorner(object, radius)
-    if not object or not object:IsA("GuiObject") then
+local function Corner(Object, Radius)
+    if not Object then
         return
     end
 
-    local corner = object:FindFirstChildOfClass("UICorner")
-
-    if not corner then
-        corner = Instance.new("UICorner")
-        corner.Name = "ModernCorner"
-        corner.Parent = object
-    end
-
-    corner.CornerRadius = UDim.new(0, radius)
-
-    return corner
-end
-
-local function addStroke(object, color, transparency)
-    if not object or not object:IsA("GuiObject") then
+    if not Object:IsA("GuiObject") then
         return
     end
 
-    local stroke = object:FindFirstChildOfClass("UIStroke")
+    local Existing = Object:FindFirstChild("ModernCorner")
 
-    if not stroke then
-        stroke = Instance.new("UIStroke")
-        stroke.Name = "ModernStroke"
-        stroke.Parent = object
+    if not Existing then
+        Existing = Instance.new("UICorner")
+        Existing.Name = "ModernCorner"
+        Existing.Parent = Object
     end
 
-    stroke.Color = color or COLORS.Border
-    stroke.Transparency = transparency or 0.15
-    stroke.Thickness = 1
-
-    return stroke
+    Existing.CornerRadius = UDim.new(0, Radius)
 end
 
-local function tween(object, properties, duration)
-    if not object then
+local function Stroke(Object, Color, Transparency)
+    if not Object then
         return
     end
 
-    TweenService:Create(
-        object,
-        TweenInfo.new(
-            duration or 0.15,
-            Enum.EasingStyle.Quart,
-            Enum.EasingDirection.Out
-        ),
-        properties
-    ):Play()
-end
-
-------------------------------------------------------------
--- CLASSIFICATION
-------------------------------------------------------------
-
-local function isLayout(object)
-    return object:IsA("UIListLayout")
-        or object:IsA("UIGridLayout")
-        or object:IsA("UIPadding")
-        or object:IsA("UIScale")
-        or object:IsA("UIAspectRatioConstraint")
-        or object:IsA("UIStroke")
-        or object:IsA("UICorner")
-end
-
-local function objectName(object)
-    return string.lower(object.Name or "")
-end
-
-local function isGroupbox(object)
-    local name = objectName(object)
-
-    return name:find("group")
-        or name:find("box")
-        or name:find("container")
-end
-
-local function isSidebar(object)
-    local name = objectName(object)
-
-    return name:find("sidebar")
-        or name:find("tab")
-end
-
-------------------------------------------------------------
--- STYLE ELEMENT
-------------------------------------------------------------
-
-local function styleObject(object)
-    if not object then
+    if not Object:IsA("GuiObject") then
         return
     end
 
-    if isLayout(object) then
+    local Existing = Object:FindFirstChild("ModernStroke")
+
+    if not Existing then
+        Existing = Instance.new("UIStroke")
+        Existing.Name = "ModernStroke"
+        Existing.Parent = Object
+    end
+
+    Existing.Color = Color or COLORS.Border
+    Existing.Transparency = Transparency or 0.25
+    Existing.Thickness = 1
+end
+
+local function Style(Object)
+    if not Object then
         return
     end
 
-    --------------------------------------------------------
-    -- FRAMES
-    --------------------------------------------------------
+    if Object:IsA("TextLabel") then
 
-    if object:IsA("Frame") then
+        Object.FontFace = Library.Scheme.Font
+        Object.TextColor3 = COLORS.Text
 
-        if isSidebar(object) then
-            addCorner(object, RADIUS.Sidebar)
-            return
-        end
+    elseif Object:IsA("TextButton") then
 
-        if isGroupbox(object) then
-            addCorner(object, RADIUS.Groupbox)
-            addStroke(object, COLORS.Border, 0.35)
-            return
-        end
+        Object.FontFace = Library.Scheme.Font
+        Object.TextColor3 = COLORS.Text
 
-        -- General containers
-        if object.BackgroundTransparency < 1 then
-            addCorner(object, RADIUS.Element)
-        end
+        Corner(Object, 9)
 
-    --------------------------------------------------------
-    -- BUTTONS
-    --------------------------------------------------------
+    elseif Object:IsA("TextBox") then
 
-    elseif object:IsA("TextButton") then
+        Object.FontFace = Library.Scheme.Font
+        Object.TextColor3 = COLORS.Text
 
-        local name = objectName(object)
+        Corner(Object, 9)
+        Stroke(Object, COLORS.Border, 0.3)
 
-        if name:find("tab") then
-            addCorner(object, RADIUS.Tab)
-        elseif name:find("toggle") then
-            addCorner(object, RADIUS.Toggle)
-        elseif name:find("key") then
-            addCorner(object, RADIUS.Toggle)
-        else
-            addCorner(object, RADIUS.Button)
-        end
+    elseif Object:IsA("ScrollingFrame") then
 
-        addStroke(object, COLORS.Border, 0.5)
+        Object.ScrollBarThickness = 3
+        Object.ScrollBarImageColor3 = COLORS.Accent
+        Object.ScrollBarImageTransparency = 0.25
 
-        ----------------------------------------------------
-        -- Hover
-        ----------------------------------------------------
-
-        local normalColor = object.BackgroundColor3
-
-        object.MouseEnter:Connect(function()
-            if object.Parent then
-                tween(
-                    object,
-                    {
-                        BackgroundColor3 = COLORS.ElementHover
-                    },
-                    0.12
-                )
-            end
-        end)
-
-        object.MouseLeave:Connect(function()
-            if object.Parent then
-                tween(
-                    object,
-                    {
-                        BackgroundColor3 = normalColor
-                    },
-                    0.16
-                )
-            end
-        end)
-
-    --------------------------------------------------------
-    -- TEXT BOX
-    --------------------------------------------------------
-
-    elseif object:IsA("TextBox") then
-        addCorner(object, RADIUS.Input)
-        addStroke(object, COLORS.Border, 0.35)
-
-    --------------------------------------------------------
-    -- SCROLLING FRAME
-    --------------------------------------------------------
-
-    elseif object:IsA("ScrollingFrame") then
-        object.ScrollBarThickness = 3
-        object.ScrollBarImageColor3 = COLORS.Accent
-        object.ScrollBarImageTransparency = 0.25
-
-    --------------------------------------------------------
-    -- IMAGE BUTTON
-    --------------------------------------------------------
-
-    elseif object:IsA("ImageButton") then
-        addCorner(object, RADIUS.Button)
     end
 end
 
-------------------------------------------------------------
--- RECURSIVE SKIN
-------------------------------------------------------------
+----------------------------------------------------------------
+-- STYLE ENTIRE GUI
+----------------------------------------------------------------
 
-local function skinTree(root)
-    if not root then
+local function StyleTree(Root)
+    if not Root then
         return
     end
 
-    styleObject(root)
+    Style(Root)
 
-    for _, child in ipairs(root:GetChildren()) do
-        skinTree(child)
+    for _, Object in ipairs(Root:GetDescendants()) do
+        Style(Object)
     end
 end
 
-------------------------------------------------------------
--- LIVE SKIN
-------------------------------------------------------------
+----------------------------------------------------------------
+-- FIND MAIN GUI
+----------------------------------------------------------------
 
-local function watchTree(root)
-    if not root then
-        return
-    end
-
-    skinTree(root)
-
-    root.DescendantAdded:Connect(function(object)
-        task.defer(function()
-            if object and object.Parent then
-                styleObject(object)
-
-                -- Some Obsidian elements construct their children
-                -- one frame later.
-                task.defer(function()
-                    if object and object.Parent then
-                        skinTree(object)
-                    end
-                end)
-            end
-        end)
-    end)
+local function GetRoot()
+    return Library.WindowContainer
+        or Library.Window
+        or Library.ScreenGui
 end
 
-------------------------------------------------------------
--- MODERN WINDOW
-------------------------------------------------------------
+----------------------------------------------------------------
+-- MODERNIZE WINDOW
+----------------------------------------------------------------
 
-local OriginalCreateWindow = Library.CreateWindow
+local OldCreateWindow = Library.CreateWindow
 
-function Library:CreateWindow(options)
-    options = options or {}
+Library.CreateWindow = function(self, Options)
 
-    --------------------------------------------------------
+    Options = Options or {}
+
+    ------------------------------------------------------------
     -- Modern defaults
-    --------------------------------------------------------
+    ------------------------------------------------------------
 
-    options.CornerRadius = options.CornerRadius or RADIUS.Window
+    Options.Size =
+        Options.Size
+        or UDim2.fromOffset(900, 600)
 
-    options.Size =
-        options.Size
-        or UDim2.fromOffset(850, 600)
+    Options.CornerRadius =
+        Options.CornerRadius
+        or 14
 
-    options.MinSize =
-        options.MinSize
-        or Vector2.new(650, 450)
-
-    options.NotifySide =
-        options.NotifySide
-        or "Right"
-
-    options.Font =
-        options.Font
+    Options.Font =
+        Options.Font
         or Enum.Font.Gotham
 
-    --------------------------------------------------------
-    -- Create original Obsidian window
-    --------------------------------------------------------
+    Options.Center =
+        Options.Center ~= false
 
-    local Window = OriginalCreateWindow(self, options)
+    Options.AutoShow =
+        Options.AutoShow ~= false
 
-    --------------------------------------------------------
-    -- Find ScreenGui / Window
-    --------------------------------------------------------
+    Options.NotifySide =
+        Options.NotifySide
+        or "Right"
+
+    ------------------------------------------------------------
+    -- Create ORIGINAL Obsidian Window
+    ------------------------------------------------------------
+
+    local Window = OldCreateWindow(self, Options)
+
+    ------------------------------------------------------------
+    -- Style after construction
+    ------------------------------------------------------------
 
     task.defer(function()
 
-        local root =
-            self.WindowContainer
-            or self.Window
-            or self.ScreenGui
+        task.wait()
 
-        if root then
-            skinTree(root)
-            watchTree(root)
+        local Root = GetRoot()
+
+        if Root then
+            StyleTree(Root)
+        end
+
+        --------------------------------------------------------
+        -- Window
+        --------------------------------------------------------
+
+        if Library.WindowContainer then
+            Corner(
+                Library.WindowContainer,
+                18
+            )
+
+            Stroke(
+                Library.WindowContainer,
+                COLORS.Border,
+                0.20
+            )
+        end
+
+        --------------------------------------------------------
+        -- Live elements
+        --------------------------------------------------------
+
+        if Root then
+
+            Root.DescendantAdded:Connect(function(Object)
+
+                task.defer(function()
+
+                    if Object and Object.Parent then
+                        Style(Object)
+
+                        for _, Child in ipairs(
+                            Object:GetDescendants()
+                        ) do
+                            Style(Child)
+                        end
+                    end
+
+                end)
+
+            end)
+
         end
 
     end)
@@ -412,96 +315,63 @@ function Library:CreateWindow(options)
     return Window
 end
 
-------------------------------------------------------------
--- MODERN NOTIFICATIONS
-------------------------------------------------------------
-
-local OriginalNotify = Library.Notify
-
-if OriginalNotify then
-
-    function Library:Notify(data)
-        local result = OriginalNotify(self, data)
-
-        task.defer(function()
-
-            local root =
-                self.WindowContainer
-                or self.Window
-                or self.ScreenGui
-
-            if root then
-                for _, object in ipairs(root:GetDescendants()) do
-
-                    local name = objectName(object)
-
-                    if name:find("notification") then
-                        addCorner(object, RADIUS.Notification)
-                        addStroke(object, COLORS.Border, 0.25)
-                    end
-
-                end
-            end
-
-        end)
-
-        return result
-    end
-
-end
-
-------------------------------------------------------------
--- PUBLIC SKIN API
-------------------------------------------------------------
+----------------------------------------------------------------
+-- PUBLIC MODERN STYLE
+----------------------------------------------------------------
 
 function Library:ApplyModernStyle()
-    local root =
-        self.WindowContainer
-        or self.Window
-        or self.ScreenGui
 
-    if not root then
+    local Root = GetRoot()
+
+    if not Root then
         return false
     end
 
-    skinTree(root)
+    StyleTree(Root)
+
+    if Library.WindowContainer then
+
+        Corner(
+            Library.WindowContainer,
+            18
+        )
+
+        Stroke(
+            Library.WindowContainer,
+            COLORS.Border,
+            0.20
+        )
+
+    end
 
     return true
 end
 
-function Library:SetModernAccent(color)
-    if typeof(color) ~= "Color3" then
-        return
+----------------------------------------------------------------
+-- ACCENT
+----------------------------------------------------------------
+
+function Library:SetModernAccent(Color)
+
+    if typeof(Color) ~= "Color3" then
+        return false
     end
 
-    COLORS.Accent = color
-    self.Scheme.AccentColor = color
+    COLORS.Accent = Color
+    Library.Scheme.AccentColor = Color
 
-    local root =
-        self.WindowContainer
-        or self.Window
-        or self.ScreenGui
-
-    if root then
-
-        for _, object in ipairs(root:GetDescendants()) do
-
-            if object:IsA("UIStroke") then
-                if object.Name == "ModernAccentStroke" then
-                    object.Color = color
-                end
-            end
-
-        end
-
-    end
+    return true
 end
 
-------------------------------------------------------------
--- READY
-------------------------------------------------------------
+----------------------------------------------------------------
+-- VERSION
+----------------------------------------------------------------
 
 Library.Modern = true
-Library.ModernVersion = "1.0.0"
+Library.ModernVersion = "2.0"
+
+----------------------------------------------------------------
+-- RETURN REAL OBSIDIAN LIBRARY
+----------------------------------------------------------------
 
 return Library
