@@ -1,27 +1,27 @@
---// KamUI Obsidian Skin
---// Keeps the original Obsidian API intact.
---// Visual layer only.
+--// KamUI Modern Obsidian
+--// API preserved - visual layer redesigned
 
-local OBsidIAN_URL =
+local HttpGet = game.HttpGet
+local LoadString = loadstring
+
+local OBSIDIAN_URL =
     "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/Library.lua"
 
-local source = game:HttpGet(
-    OBsidIAN_URL .. "?kamui=" .. tostring(os.clock())
+local Source = HttpGet(
+    game,
+    OBSIDIAN_URL .. "?kamui=" .. tostring(math.floor(os.clock() * 100000))
 )
 
-local loader, compileError = loadstring(source)
+local Loader, CompileError = LoadString(Source)
 
-if not loader then
-    error(
-        "[KamUI] Obsidian Library compile error:\n"
-        .. tostring(compileError)
-    )
+if not Loader then
+    error("[KamUI] Obsidian compile error:\n" .. tostring(CompileError))
 end
 
-local Library = loader()
+local Library = Loader()
 
 if type(Library) ~= "table" then
-    error("[KamUI] Obsidian Library did not return a table.")
+    error("[KamUI] Obsidian Library failed to load.")
 end
 
 ---------------------------------------------------------------------
@@ -32,415 +32,491 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
 ---------------------------------------------------------------------
--- KAMUI THEME
+-- MODERN THEME
 ---------------------------------------------------------------------
 
 Library.CornerRadius = 14
 
-Library.Scheme.BackgroundColor =
-    Color3.fromRGB(5, 5, 7)
-
-Library.Scheme.MainColor =
-    Color3.fromRGB(11, 11, 14)
-
-Library.Scheme.AccentColor =
-    Color3.fromRGB(125, 90, 255)
-
-Library.Scheme.OutlineColor =
-    Color3.fromRGB(30, 30, 36)
-
-Library.Scheme.FontColor =
-    Color3.fromRGB(245, 245, 248)
-
-Library.Scheme.DarkColor =
-    Color3.fromRGB(1, 1, 2)
-
-Library.Scheme.RedColor =
-    Color3.fromRGB(255, 70, 80)
-
-Library.Scheme.DestructiveColor =
-    Color3.fromRGB(220, 50, 60)
-
-Library.Scheme.WhiteColor =
-    Color3.fromRGB(255, 255, 255)
-
----------------------------------------------------------------------
--- FONT
----------------------------------------------------------------------
+Library.Scheme.BackgroundColor = Color3.fromRGB(5, 5, 7)
+Library.Scheme.MainColor       = Color3.fromRGB(12, 12, 15)
+Library.Scheme.AccentColor     = Color3.fromRGB(135, 100, 255)
+Library.Scheme.OutlineColor    = Color3.fromRGB(29, 29, 35)
+Library.Scheme.FontColor       = Color3.fromRGB(242, 242, 247)
+Library.Scheme.DarkColor       = Color3.fromRGB(2, 2, 3)
 
 Library.Scheme.Font =
     Font.fromEnum(Enum.Font.GothamMedium)
 
----------------------------------------------------------------------
--- ANIMATIONS
----------------------------------------------------------------------
+Library.TweenInfo =
+    TweenInfo.new(
+        0.14,
+        Enum.EasingStyle.Quart,
+        Enum.EasingDirection.Out
+    )
 
-Library.TweenInfo = TweenInfo.new(
-    0.16,
-    Enum.EasingStyle.Quart,
-    Enum.EasingDirection.Out
-)
+Library.TabTransitionInfo =
+    TweenInfo.new(
+        0.18,
+        Enum.EasingStyle.Quart,
+        Enum.EasingDirection.Out
+    )
 
-Library.TabTransitionInfo = TweenInfo.new(
-    0.20,
-    Enum.EasingStyle.Quart,
-    Enum.EasingDirection.Out
-)
+Library.GroupboxTweenInfo =
+    TweenInfo.new(
+        0.16,
+        Enum.EasingStyle.Quart,
+        Enum.EasingDirection.Out
+    )
 
-Library.GroupboxTweenInfo = TweenInfo.new(
-    0.18,
-    Enum.EasingStyle.Quart,
-    Enum.EasingDirection.Out
-)
-
-Library.DropdownTransitionInfo = TweenInfo.new(
-    0.16,
-    Enum.EasingStyle.Quart,
-    Enum.EasingDirection.Out
-)
-
-Library.KeyPickerTransitionInfo = TweenInfo.new(
-    0.15,
-    Enum.EasingStyle.Quart,
-    Enum.EasingDirection.Out
-)
-
-Library.RotatingChevronTweenInfo = TweenInfo.new(
-    0.22,
-    Enum.EasingStyle.Quart,
-    Enum.EasingDirection.Out
-)
+Library.DropdownTransitionInfo =
+    TweenInfo.new(
+        0.16,
+        Enum.EasingStyle.Quart,
+        Enum.EasingDirection.Out
+    )
 
 ---------------------------------------------------------------------
--- DEFAULT WINDOW SETTINGS
+-- HELPERS
 ---------------------------------------------------------------------
 
--- We do not replace CreateWindow.
--- We only intercept its returned Window and add the visual layer.
-
-local OriginalCreateWindow = Library.CreateWindow
-
----------------------------------------------------------------------
--- PARTICLE SYSTEM
----------------------------------------------------------------------
-
-local function CreateParticles(MainFrame)
-
-    if not MainFrame then
+local function Corner(Object, Radius)
+    if not Object then
         return
     end
 
-    local old = MainFrame:FindFirstChild(
-        "KamUI_BackgroundParticles"
-    )
+    local Existing = Object:FindFirstChild("KamUI_Corner")
 
-    if old then
-        old:Destroy()
+    if Existing then
+        Existing.CornerRadius =
+            UDim.new(0, Radius)
+
+        return Existing
     end
 
-    local particleHolder = Instance.new("Frame")
+    local C = Instance.new("UICorner")
 
-    particleHolder.Name =
-        "KamUI_BackgroundParticles"
+    C.Name = "KamUI_Corner"
+    C.CornerRadius = UDim.new(0, Radius)
+    C.Parent = Object
 
-    particleHolder.BackgroundTransparency = 1
+    return C
+end
 
-    particleHolder.BorderSizePixel = 0
+local function Stroke(Object, Color, Transparency, Thickness)
+    if not Object then
+        return
+    end
 
-    particleHolder.Size =
-        UDim2.fromScale(1, 1)
+    local Existing =
+        Object:FindFirstChild("KamUI_Stroke")
 
-    particleHolder.Position =
-        UDim2.fromScale(0, 0)
+    if Existing and Existing:IsA("UIStroke") then
+        Existing.Color = Color
+        Existing.Transparency = Transparency
+        Existing.Thickness = Thickness
 
-    particleHolder.ClipsDescendants = true
+        return Existing
+    end
 
-    particleHolder.ZIndex = 0
+    local S = Instance.new("UIStroke")
 
-    particleHolder.Parent = MainFrame
+    S.Name = "KamUI_Stroke"
+    S.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    S.Color = Color
+    S.Transparency = Transparency
+    S.Thickness = Thickness
+    S.Parent = Object
 
-    local random = Random.new()
+    return S
+end
 
-    local particles = {}
+local function SetFont(Object, Size)
+    if not (
+        Object:IsA("TextLabel")
+        or Object:IsA("TextButton")
+        or Object:IsA("TextBox")
+    ) then
+        return
+    end
 
-    for i = 1, 30 do
+    pcall(function()
+        Object.FontFace =
+            Font.fromEnum(Enum.Font.GothamMedium)
+    end)
 
-        local particle = Instance.new("Frame")
+    if Size then
+        Object.TextSize = Size
+    elseif Object.TextSize < 13 then
+        Object.TextSize = 13
+    end
 
-        particle.Name = "Particle"
+    Object.TextColor3 =
+        Library.Scheme.FontColor
+end
 
-        particle.BorderSizePixel = 0
+---------------------------------------------------------------------
+-- PARTICLES
+---------------------------------------------------------------------
 
-        particle.BackgroundColor3 =
+local function CreateParticles(Main)
+    if not Main then
+        return
+    end
+
+    local Existing =
+        Main:FindFirstChild("KamUI_Particles")
+
+    if Existing then
+        Existing:Destroy()
+    end
+
+    local Holder = Instance.new("Frame")
+
+    Holder.Name = "KamUI_Particles"
+    Holder.BackgroundTransparency = 1
+    Holder.BorderSizePixel = 0
+    Holder.Size = UDim2.fromScale(1, 1)
+    Holder.Position = UDim2.fromScale(0, 0)
+    Holder.ClipsDescendants = true
+    Holder.ZIndex = 0
+    Holder.Parent = Main
+
+    local Random = Random.new()
+
+    local ParticleList = {}
+
+    for i = 1, 26 do
+        local Dot = Instance.new("Frame")
+
+        Dot.Name = "Dot"
+        Dot.BorderSizePixel = 0
+        Dot.BackgroundColor3 =
             Color3.fromRGB(
-                random:NextInteger(28, 55),
-                random:NextInteger(28, 55),
-                random:NextInteger(32, 65)
+                Random:NextInteger(35, 65),
+                Random:NextInteger(35, 65),
+                Random:NextInteger(40, 72)
             )
 
-        particle.BackgroundTransparency =
-            random:NextNumber(0.70, 0.88)
+        Dot.BackgroundTransparency =
+            Random:NextNumber(0.78, 0.91)
 
-        local size =
-            random:NextNumber(1.5, 3.2)
+        local Size =
+            Random:NextNumber(1.5, 3)
 
-        particle.Size =
-            UDim2.fromOffset(size, size)
+        Dot.Size =
+            UDim2.fromOffset(Size, Size)
 
-        particle.Position =
+        Dot.Position =
             UDim2.fromScale(
-                random:NextNumber(0.02, 0.98),
-                random:NextNumber(0.02, 0.98)
+                Random:NextNumber(0.02, 0.98),
+                Random:NextNumber(0.02, 0.98)
             )
 
-        particle.ZIndex = 0
+        Dot.ZIndex = 0
+        Dot.Parent = Holder
 
-        particle.Parent = particleHolder
+        Corner(Dot, 10)
 
-        local corner =
-            Instance.new("UICorner")
-
-        corner.CornerRadius =
-            UDim.new(1, 0)
-
-        corner.Parent = particle
-
-        table.insert(
-            particles,
-            particle
-        )
+        table.insert(ParticleList, Dot)
     end
 
     task.spawn(function()
-
-        while
-            particleHolder.Parent
-            and not Library.Unloaded
-        do
-
-            for _, particle in ipairs(particles) do
-
-                if not particle.Parent then
-                    continue
-                end
-
-                task.spawn(function()
-
-                    local target =
-                        UDim2.fromScale(
-                            math.clamp(
-                                particle.Position.X.Scale
-                                    + random:NextNumber(-0.035, 0.035),
-                                0,
-                                1
-                            ),
-                            math.clamp(
-                                particle.Position.Y.Scale
-                                    + random:NextNumber(-0.035, 0.035),
-                                0,
-                                1
+        while Holder.Parent and not Library.Unloaded do
+            for _, Dot in ipairs(ParticleList) do
+                if Dot.Parent then
+                    task.spawn(function()
+                        local Target =
+                            UDim2.fromScale(
+                                math.clamp(
+                                    Dot.Position.X.Scale +
+                                    Random:NextNumber(-0.025, 0.025),
+                                    0,
+                                    1
+                                ),
+                                math.clamp(
+                                    Dot.Position.Y.Scale +
+                                    Random:NextNumber(-0.025, 0.025),
+                                    0,
+                                    1
+                                )
                             )
-                        )
 
-                    local duration =
-                        random:NextNumber(2.5, 5)
+                        local Tween =
+                            TweenService:Create(
+                                Dot,
+                                TweenInfo.new(
+                                    Random:NextNumber(3, 6),
+                                    Enum.EasingStyle.Sine,
+                                    Enum.EasingDirection.InOut
+                                ),
+                                {
+                                    Position = Target
+                                }
+                            )
 
-                    local tween =
-                        TweenService:Create(
-                            particle,
-                            TweenInfo.new(
-                                duration,
-                                Enum.EasingStyle.Sine,
-                                Enum.EasingDirection.InOut
-                            ),
-                            {
-                                Position = target
-                            }
-                        )
-
-                    tween:Play()
-
-                    tween.Completed:Wait()
-                end)
-
+                        Tween:Play()
+                        Tween.Completed:Wait()
+                    end)
+                end
             end
 
-            task.wait(1.2)
+            task.wait(1.5)
         end
     end)
-
-    return particleHolder
 end
 
 ---------------------------------------------------------------------
--- EXTRA VISUAL TUNING
+-- WINDOW SKIN
 ---------------------------------------------------------------------
 
-local function ApplyVisuals(Window)
+local function StyleWindow(Window)
+    if not Library.ScreenGui then
+        return
+    end
 
-    if not Window then
+    local Gui = Library.ScreenGui
+
+    -----------------------------------------------------------------
+    -- FIND MAIN
+    -----------------------------------------------------------------
+
+    local Main =
+        Gui:FindFirstChild("Main", true)
+
+    if not Main then
+        Main = Gui:FindFirstChildWhichIsA(
+            "TextButton",
+            true
+        )
+    end
+
+    if not Main then
         return
     end
 
     -----------------------------------------------------------------
-    -- CORNER RADIUS
+    -- MAIN WINDOW
     -----------------------------------------------------------------
 
-    pcall(function()
-        Window:SetCornerRadius(14)
-    end)
+    Main.BackgroundColor3 =
+        Color3.fromRGB(5, 5, 7)
+
+    Main.BackgroundTransparency = 0
+    Main.ClipsDescendants = true
+
+    Corner(Main, 14)
+
+    Stroke(
+        Main,
+        Color3.fromRGB(28, 28, 34),
+        0,
+        1
+    )
+
+    CreateParticles(Main)
 
     -----------------------------------------------------------------
-    -- WINDOW FRAME
+    -- ALL UI
     -----------------------------------------------------------------
 
-    local MainFrame
-
-    if Library.ScreenGui then
-
-        MainFrame =
-            Library.ScreenGui:FindFirstChild(
-                "Main"
-            )
-    end
-
-    if not MainFrame then
-
-        MainFrame =
-            Library.ScreenGui
-            and Library.ScreenGui:FindFirstChildWhichIsA(
-                "TextButton",
-                true
-            )
-    end
-
-    if MainFrame then
-
-        MainFrame.BackgroundColor3 =
-            Library.Scheme.BackgroundColor
-
-        MainFrame.BackgroundTransparency = 0
-
-        MainFrame.ClipsDescendants = true
-
-        CreateParticles(MainFrame)
+    for _, Object in ipairs(Gui:GetDescendants()) do
 
         -------------------------------------------------------------
-        -- OUTLINE
+        -- TEXT
         -------------------------------------------------------------
 
-        local stroke =
-            MainFrame:FindFirstChild(
-                "KamUI_Outline"
+        if Object:IsA("TextLabel") then
+            SetFont(Object)
+
+            if Object.TextSize >= 17 then
+                Object.TextSize = 16
+            elseif Object.TextSize >= 14 then
+                Object.TextSize = 14
+            end
+        end
+
+        if Object:IsA("TextButton") then
+            SetFont(Object)
+        end
+
+        if Object:IsA("TextBox") then
+            SetFont(Object, 13)
+
+            Object.BackgroundColor3 =
+                Color3.fromRGB(10, 10, 13)
+
+            Object.BackgroundTransparency = 0
+
+            Corner(Object, 8)
+
+            Stroke(
+                Object,
+                Color3.fromRGB(31, 31, 38),
+                0,
+                1
             )
-
-        if not stroke then
-
-            stroke =
-                Instance.new("UIStroke")
-
-            stroke.Name =
-                "KamUI_Outline"
-
-            stroke.Color =
-                Color3.fromRGB(28, 28, 34)
-
-            stroke.Thickness = 1
-
-            stroke.Transparency = 0
-
-            stroke.Parent = MainFrame
         end
 
         -------------------------------------------------------------
-        -- CORNER
+        -- SCROLLING
         -------------------------------------------------------------
 
-        local corner =
-            MainFrame:FindFirstChild(
-                "KamUI_MainCorner"
-            )
+        if Object:IsA("ScrollingFrame") then
+            Object.ScrollBarThickness = 2
 
-        if not corner then
+            Object.ScrollBarImageColor3 =
+                Color3.fromRGB(70, 70, 80)
 
-            corner =
-                Instance.new("UICorner")
-
-            corner.Name =
-                "KamUI_MainCorner"
-
-            corner.CornerRadius =
-                UDim.new(0, 14)
-
-            corner.Parent = MainFrame
+            Object.ScrollBarImageTransparency = 0.25
         end
-    end
 
-    -----------------------------------------------------------------
-    -- GROUPBOXES
-    -----------------------------------------------------------------
+        -------------------------------------------------------------
+        -- TAB BUTTONS
+        -------------------------------------------------------------
 
-    if Library.ScreenGui then
+        if Object:IsA("TextButton") then
+            local Parent = Object.Parent
 
-        for _, object in ipairs(
-            Library.ScreenGui:GetDescendants()
-        ) do
+            if Parent then
+                local Name =
+                    string.lower(Object.Name)
 
-            if object:IsA("Frame") then
+                local ParentName =
+                    string.lower(Parent.Name)
 
-                local width =
-                    object.AbsoluteSize.X
+                if
+                    ParentName:find("tab")
+                    or Name:find("tab")
+                then
+                    Corner(Object, 8)
 
-                if width > 180 then
+                    Object.BackgroundColor3 =
+                        Color3.fromRGB(18, 18, 22)
 
-                    local existing =
-                        object:FindFirstChild(
-                            "KamUI_GroupCorner"
-                        )
+                    Object.BackgroundTransparency = 1
 
-                    if not existing then
+                    Object.MouseEnter:Connect(function()
+                        if not Library.Unloaded then
+                            TweenService:Create(
+                                Object,
+                                Library.TweenInfo,
+                                {
+                                    BackgroundTransparency = 0.35
+                                }
+                            ):Play()
+                        end
+                    end)
 
-                        local corner =
-                            Instance.new("UICorner")
-
-                        corner.Name =
-                            "KamUI_GroupCorner"
-
-                        corner.CornerRadius =
-                            UDim.new(0, 11)
-
-                        corner.Parent =
-                            object
-                    end
+                    Object.MouseLeave:Connect(function()
+                        if not Library.Unloaded then
+                            TweenService:Create(
+                                Object,
+                                Library.TweenInfo,
+                                {
+                                    BackgroundTransparency = 1
+                                }
+                            ):Play()
+                        end
+                    end)
                 end
             end
         end
     end
 
     -----------------------------------------------------------------
-    -- TEXT CLARITY
+    -- GROUPBOX SKIN
     -----------------------------------------------------------------
 
-    if Library.ScreenGui then
+    for _, Object in ipairs(
+        Gui:GetDescendants()
+    ) do
 
-        for _, object in ipairs(
-            Library.ScreenGui:GetDescendants()
-        ) do
+        if Object:IsA("Frame") then
 
-            if object:IsA("TextLabel")
-                or object:IsA("TextButton")
-                or object:IsA("TextBox") then
+            local Size = Object.AbsoluteSize
 
-                if object.TextSize < 12 then
-                    object.TextSize = 13
+            if Size.X >= 150 and Size.Y >= 40 then
+
+                local ParentName =
+                    Object.Parent
+                    and string.lower(
+                        Object.Parent.Name
+                    )
+                    or ""
+
+                local ObjectName =
+                    string.lower(Object.Name)
+
+                if
+                    ObjectName:find("group")
+                    or ObjectName:find("box")
+                    or ParentName:find("group")
+                    or ParentName:find("box")
+                then
+
+                    Corner(Object, 10)
+
+                    Stroke(
+                        Object,
+                        Color3.fromRGB(27, 27, 33),
+                        0,
+                        1
+                    )
+
+                    Object.BackgroundColor3 =
+                        Color3.fromRGB(10, 10, 13)
+
+                    Object.BackgroundTransparency = 0
                 end
+            end
+        end
+    end
 
-                object.TextColor3 =
-                    Library.Scheme.FontColor
+    -----------------------------------------------------------------
+    -- SLIDER / INPUT STYLE
+    -----------------------------------------------------------------
 
-                pcall(function()
-                    object.FontFace =
-                        Library.Scheme.Font
+    for _, Object in ipairs(
+        Gui:GetDescendants()
+    ) do
+
+        if Object:IsA("Frame") then
+
+            local Name =
+                string.lower(Object.Name)
+
+            if
+                Name:find("slider")
+                or Name:find("track")
+            then
+                Corner(Object, 6)
+            end
+        end
+
+        if Object:IsA("TextButton") then
+
+            local Name =
+                string.lower(Object.Name)
+
+            if
+                Name:find("toggle")
+                or Name:find("checkbox")
+            then
+
+                Corner(Object, 7)
+
+                Object.MouseEnter:Connect(function()
+                    TweenService:Create(
+                        Object,
+                        Library.TweenInfo,
+                        {
+                            BackgroundTransparency =
+                                math.max(
+                                    0,
+                                    Object.BackgroundTransparency - 0.08
+                                )
+                        }
+                    ):Play()
                 end)
             end
         end
@@ -448,123 +524,98 @@ local function ApplyVisuals(Window)
 end
 
 ---------------------------------------------------------------------
--- WRAP CREATEWINDOW
+-- CREATE WINDOW WRAPPER
 ---------------------------------------------------------------------
 
-Library.CreateWindow = function(self, info)
+local OriginalCreateWindow =
+    Library.CreateWindow
 
-    info = info or {}
+Library.CreateWindow = function(self, Info)
 
-    -----------------------------------------------------------------
-    -- OUR DEFAULT VISUAL SETTINGS
-    -----------------------------------------------------------------
+    Info = Info or {}
 
-    if info.CornerRadius == nil then
-        info.CornerRadius = 14
-    end
+    Info.CornerRadius =
+        Info.CornerRadius or 14
 
-    if info.Font == nil then
-        info.Font =
-            Enum.Font.GothamMedium
-    end
+    Info.Font =
+        Info.Font or Enum.Font.GothamMedium
 
-    if info.Animations == nil then
+    Info.Animations = {
+        ToggleWindow = true,
+        TabSwitch = true,
+        Groupbox = true,
+        Dropdown = true,
+        KeyPicker = true
+    }
 
-        info.Animations = {
-            ToggleWindow = true,
-            TabSwitch = true,
-            Groupbox = true,
-            Dropdown = true,
-            KeyPicker = true
-        }
+    Info.TabTransitionTime =
+        Info.TabTransitionTime or 0.18
 
-    end
-
-    if info.TabTransitionTime == nil then
-        info.TabTransitionTime = 0.18
-    end
-
-    if info.TabSwipeOffset == nil then
-        info.TabSwipeOffset = 12
-    end
-
-    -----------------------------------------------------------------
-    -- CREATE ORIGINAL OBSIDIAN WINDOW
-    -----------------------------------------------------------------
+    Info.TabSwipeOffset =
+        Info.TabSwipeOffset or 12
 
     local Window =
         OriginalCreateWindow(
             self,
-            info
+            Info
         )
 
-    -----------------------------------------------------------------
-    -- APPLY OUR SKIN
-    -----------------------------------------------------------------
-
     task.defer(function()
-
-        task.wait()
+        task.wait(0.08)
 
         pcall(function()
-            ApplyVisuals(Window)
+            Window:SetCornerRadius(14)
         end)
 
+        pcall(function()
+            Window:SetAnimations(
+                Info.Animations,
+                0.18,
+                12,
+                "bottom"
+            )
+        end)
+
+        pcall(function()
+            StyleWindow(Window)
+        end)
     end)
 
     return Window
 end
 
 ---------------------------------------------------------------------
--- RE-APPLY AFTER TAB / GROUPBOX CREATION
+-- RE-STYLE NEW ELEMENTS
 ---------------------------------------------------------------------
 
-if Library.Signals then
+task.spawn(function()
 
-    task.spawn(function()
+    local LastCount = 0
 
-        while not Library.Unloaded do
+    while not Library.Unloaded do
 
-            task.wait(1)
+        task.wait(0.7)
 
-            if Library.ScreenGui then
+        if Library.ScreenGui then
+
+            local Count = #Library.ScreenGui:GetDescendants()
+
+            if Count ~= LastCount then
+                LastCount = Count
 
                 pcall(function()
-
-                    for _, object in ipairs(
-                        Library.ScreenGui:GetDescendants()
-                    ) do
-
-                        if object:IsA("TextLabel")
-                            or object:IsA("TextButton")
-                            or object:IsA("TextBox") then
-
-                            if object.TextSize < 12 then
-                                object.TextSize = 13
-                            end
-
-                            object.TextColor3 =
-                                Library.Scheme.FontColor
-
-                            pcall(function()
-                                object.FontFace =
-                                    Library.Scheme.Font
-                            end)
-                        end
-                    end
-
+                    StyleWindow(Library.Window)
                 end)
-
             end
         end
-    end)
-end
+    end
+end)
 
 ---------------------------------------------------------------------
--- KAMUI INFO
+-- MARKER
 ---------------------------------------------------------------------
 
 Library.KamUI = true
-Library.KamUIVersion = "1.0"
+Library.KamUIVersion = "2.0.0"
 
 return Library
