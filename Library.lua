@@ -618,4 +618,18 @@ end)
 Library.KamUI = true
 Library.KamUIVersion = "2.0.0"
 
+Library.KamUIRefresh = function(self)
+
+    self.CornerRadius = 14
+
+    if self.ScreenGui then
+        -- Skin fonksiyonun varsa onu tekrar çalıştır.
+        if self.KamUIStyleWindow then
+            pcall(function()
+                self:KamUIStyleWindow()
+            end)
+        end
+    end
+end
+
 return Library
