@@ -1,20 +1,7 @@
 --[[
     KamUI Library
-    Modern / Fluent-inspired renderer
-    Obsidian-compatible style API
-
-    Window
-    ├── Tabs
-    │   ├── Left Groupbox
-    │   └── Right Groupbox
-    │
-    ├── Toggle
-    ├── Slider
-    ├── Dropdown
-    ├── Input
-    ├── Button
-    ├── Label
-    └── Divider
+    Clean / Modern UI
+    Obsidian-style API, custom renderer
 ]]
 
 local Players = game:GetService("Players")
@@ -27,7 +14,7 @@ local Library = {}
 -- CORE
 ------------------------------------------------------------
 
-Library.Version = "2.0.0"
+Library.Version = "3.0.0"
 Library.Options = {}
 Library.Toggles = {}
 Library.Tabs = {}
@@ -36,32 +23,32 @@ Library.TabButtons = {}
 Library.ScreenGui = nil
 Library.Window = nil
 Library.ActiveTab = nil
-Library.Unloaded = false
 Library.Toggled = true
+Library.Unloaded = false
 
 ------------------------------------------------------------
 -- THEME
 ------------------------------------------------------------
 
 Library.Scheme = {
-    BackgroundColor = Color3.fromRGB(9, 10, 14),
-    MainColor = Color3.fromRGB(13, 14, 19),
+    BackgroundColor = Color3.fromRGB(18, 19, 23),
+    MainColor = Color3.fromRGB(22, 23, 28),
 
-    AccentColor = Color3.fromRGB(124, 92, 255),
+    SidebarColor = Color3.fromRGB(19, 20, 25),
 
-    TextColor = Color3.fromRGB(239, 240, 245),
-    SubTextColor = Color3.fromRGB(145, 148, 160),
+    CardColor = Color3.fromRGB(28, 29, 35),
+    ElementColor = Color3.fromRGB(34, 35, 42),
+    ElementHoverColor = Color3.fromRGB(41, 42, 50),
 
-    CardColor = Color3.fromRGB(17, 18, 24),
-    CardHoverColor = Color3.fromRGB(22, 23, 30),
+    BorderColor = Color3.fromRGB(54, 55, 64),
 
-    ElementColor = Color3.fromRGB(25, 26, 33),
-    ElementHoverColor = Color3.fromRGB(31, 32, 41),
+    AccentColor = Color3.fromRGB(116, 92, 255),
 
-    BorderColor = Color3.fromRGB(38, 39, 49),
+    TextColor = Color3.fromRGB(242, 243, 247),
+    SubTextColor = Color3.fromRGB(174, 176, 186),
 
-    SuccessColor = Color3.fromRGB(87, 220, 145),
-    DangerColor = Color3.fromRGB(245, 91, 105),
+    SuccessColor = Color3.fromRGB(91, 211, 143),
+    DangerColor = Color3.fromRGB(238, 91, 105),
 
     WhiteColor = Color3.fromRGB(255, 255, 255),
 }
@@ -69,13 +56,13 @@ Library.Scheme = {
 Library.Colors = Library.Scheme
 
 Library.Tween = TweenInfo.new(
-    0.18,
+    0.16,
     Enum.EasingStyle.Quart,
     Enum.EasingDirection.Out
 )
 
 ------------------------------------------------------------
--- UTIL
+-- UTILITIES
 ------------------------------------------------------------
 
 local function Create(class, properties, parent)
@@ -109,40 +96,57 @@ local function Tween(object, properties, info)
 end
 
 local function Corner(object, radius)
-    local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, radius)
-    c.Parent = object
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, radius)
+    corner.Parent = object
 
-    return c
+    return corner
 end
 
-local function Stroke(object, color, transparency)
-    local s = Instance.new("UIStroke")
+local function AddStroke(object, color, transparency)
+    local stroke = Instance.new("UIStroke")
 
-    s.Color = color or Library.Scheme.BorderColor
-    s.Transparency = transparency or 0
-    s.Thickness = 1
+    stroke.Color =
+        color or Library.Scheme.BorderColor
 
-    s.Parent = object
+    stroke.Transparency =
+        transparency or 0
 
-    return s
+    stroke.Thickness = 1
+    stroke.Parent = object
+
+    return stroke
 end
 
-local function Padding(object, left, right, top, bottom)
-    local p = Instance.new("UIPadding")
+local function AddPadding(
+    object,
+    left,
+    right,
+    top,
+    bottom
+)
 
-    p.PaddingLeft = UDim.new(0, left or 0)
-    p.PaddingRight = UDim.new(0, right or 0)
-    p.PaddingTop = UDim.new(0, top or 0)
-    p.PaddingBottom = UDim.new(0, bottom or 0)
+    local padding = Instance.new("UIPadding")
 
-    p.Parent = object
+    padding.PaddingLeft =
+        UDim.new(0, left or 0)
 
-    return p
+    padding.PaddingRight =
+        UDim.new(0, right or 0)
+
+    padding.PaddingTop =
+        UDim.new(0, top or 0)
+
+    padding.PaddingBottom =
+        UDim.new(0, bottom or 0)
+
+    padding.Parent = object
+
+    return padding
 end
 
 ------------------------------------------------------------
--- WINDOW
+-- CREATE WINDOW
 ------------------------------------------------------------
 
 function Library:CreateWindow(settings)
@@ -153,10 +157,16 @@ function Library:CreateWindow(settings)
         self.ScreenGui:Destroy()
     end
 
+    self.Options = {}
+    self.Toggles = {}
+    self.Tabs = {}
+    self.TabButtons = {}
+
     self.Unloaded = false
+    self.Toggled = true
 
     --------------------------------------------------------
-    -- GUI
+    -- SCREEN GUI
     --------------------------------------------------------
 
     local gui = Create("ScreenGui", {
@@ -166,52 +176,56 @@ function Library:CreateWindow(settings)
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     })
 
-    local success = pcall(function()
+    local parentSuccess = pcall(function()
         gui.Parent = gethui()
     end)
 
-    if not success or not gui.Parent then
+    if not parentSuccess or not gui.Parent then
         gui.Parent = game:GetService("CoreGui")
     end
 
     self.ScreenGui = gui
 
     --------------------------------------------------------
-    -- WINDOW
+    -- MAIN WINDOW
     --------------------------------------------------------
 
     local window = Create("Frame", {
-        Name = "Window",
+        Name = "MainWindow",
 
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.5),
+        AnchorPoint =
+            Vector2.new(0.5, 0.5),
 
-        -- 10px smaller than the previous version
-        Size = settings.Size or UDim2.fromOffset(1040, 640),
+        Position =
+            UDim2.fromScale(0.5, 0.5),
 
-        BackgroundColor3 = self.Scheme.MainColor,
+        Size =
+            settings.Size
+            or UDim2.fromOffset(1040, 640),
+
+        BackgroundColor3 =
+            self.Scheme.MainColor,
 
         BorderSizePixel = 0
     }, gui)
 
-    Corner(window, 18)
+    Corner(window, 12)
 
-    Stroke(
+    AddStroke(
         window,
         self.Scheme.BorderColor,
-        0.25
+        0.15
     )
 
     self.Window = window
 
     --------------------------------------------------------
-    -- TOP BAR
+    -- HEADER
     --------------------------------------------------------
 
-    local top = Create("Frame", {
-        Name = "Top",
-
-        Size = UDim2.new(1, 0, 0, 64),
+    local header = Create("Frame", {
+        Size =
+            UDim2.new(1, 0, 0, 58),
 
         BackgroundTransparency = 1,
 
@@ -219,117 +233,152 @@ function Library:CreateWindow(settings)
     }, window)
 
     --------------------------------------------------------
-    -- BRAND DOT
+    -- BRAND
     --------------------------------------------------------
 
-    local brandDot = Create("Frame", {
-        Position = UDim2.fromOffset(20, 22),
+    local brand = Create("Frame", {
+        Position =
+            UDim2.fromOffset(18, 19),
 
-        Size = UDim2.fromOffset(20, 20),
+        Size =
+            UDim2.fromOffset(20, 20),
 
-        BackgroundColor3 = self.Scheme.AccentColor,
-
-        BorderSizePixel = 0
-    }, top)
-
-    Corner(brandDot, 10)
-
-    local brandDotInner = Create("Frame", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-
-        Position = UDim2.fromScale(0.5, 0.5),
-
-        Size = UDim2.fromOffset(7, 7),
-
-        BackgroundColor3 = Color3.fromRGB(255,255,255),
-
-        BackgroundTransparency = 0.15,
+        BackgroundColor3 =
+            self.Scheme.AccentColor,
 
         BorderSizePixel = 0
-    }, brandDot)
+    }, header)
 
-    Corner(brandDotInner, 4)
+    Corner(brand, 6)
+
+    local brandInner = Create("Frame", {
+        AnchorPoint =
+            Vector2.new(0.5, 0.5),
+
+        Position =
+            UDim2.fromScale(0.5, 0.5),
+
+        Size =
+            UDim2.fromOffset(7, 7),
+
+        BackgroundColor3 =
+            Color3.fromRGB(255,255,255),
+
+        BorderSizePixel = 0
+    }, brand)
+
+    Corner(brandInner, 3)
 
     --------------------------------------------------------
     -- TITLE
     --------------------------------------------------------
 
-    local title = Create("TextLabel", {
-        Position = UDim2.fromOffset(51, 15),
+    Create("TextLabel", {
+        Position =
+            UDim2.fromOffset(49, 10),
 
-        Size = UDim2.new(0, 400, 0, 22),
-
-        BackgroundTransparency = 1,
-
-        Text = settings.Title or "KamUI",
-
-        TextColor3 = self.Scheme.TextColor,
-
-        FontFace = Font.fromEnum(Enum.Font.GothamBold),
-
-        TextSize = 16,
-
-        TextXAlignment = Enum.TextXAlignment.Left
-    }, top)
-
-    local subtitle = Create("TextLabel", {
-        Position = UDim2.fromOffset(51, 36),
-
-        Size = UDim2.new(0, 400, 0, 16),
+        Size =
+            UDim2.new(0, 450, 0, 23),
 
         BackgroundTransparency = 1,
 
-        Text = settings.Subtitle or "Modern interface",
+        Text =
+            settings.Title
+            or "KamUI",
 
-        TextColor3 = self.Scheme.SubTextColor,
+        TextColor3 =
+            self.Scheme.TextColor,
 
-        FontFace = Font.fromEnum(Enum.Font.Gotham),
+        FontFace =
+            Font.fromEnum(Enum.Font.GothamBold),
+
+        TextSize = 15,
+
+        TextXAlignment =
+            Enum.TextXAlignment.Left
+    }, header)
+
+    Create("TextLabel", {
+        Position =
+            UDim2.fromOffset(49, 31),
+
+        Size =
+            UDim2.new(0, 450, 0, 16),
+
+        BackgroundTransparency = 1,
+
+        Text =
+            settings.Subtitle
+            or "Modern interface",
+
+        TextColor3 =
+            self.Scheme.SubTextColor,
+
+        FontFace =
+            Font.fromEnum(Enum.Font.Gotham),
 
         TextSize = 10,
 
-        TextXAlignment = Enum.TextXAlignment.Left
-    }, top)
+        TextXAlignment =
+            Enum.TextXAlignment.Left
+    }, header)
 
     --------------------------------------------------------
     -- CLOSE
     --------------------------------------------------------
 
     local close = Create("TextButton", {
-        AnchorPoint = Vector2.new(1, 0.5),
+        AnchorPoint =
+            Vector2.new(1, 0.5),
 
-        Position = UDim2.new(1, -16, 0.5, 0),
+        Position =
+            UDim2.new(1, -15, 0.5, 0),
 
-        Size = UDim2.fromOffset(34, 34),
+        Size =
+            UDim2.fromOffset(32, 32),
 
-        BackgroundColor3 = Color3.fromRGB(30, 30, 38),
+        BackgroundColor3 =
+            self.Scheme.ElementColor,
 
-        BackgroundTransparency = 0.15,
+        BorderSizePixel = 0,
 
         Text = "×",
 
-        TextColor3 = self.Scheme.SubTextColor,
+        TextColor3 =
+            self.Scheme.SubTextColor,
 
-        FontFace = Font.fromEnum(Enum.Font.GothamMedium),
+        FontFace =
+            Font.fromEnum(Enum.Font.GothamMedium),
 
-        TextSize = 19,
+        TextSize = 18,
 
         AutoButtonColor = false
-    }, top)
+    }, header)
 
-    Corner(close, 10)
+    Corner(close, 8)
 
     close.MouseEnter:Connect(function()
+
         Tween(close, {
-            BackgroundColor3 = Color3.fromRGB(70, 35, 43),
-            TextColor3 = self.Scheme.DangerColor
+            BackgroundColor3 =
+                Color3.fromRGB(65, 35, 42),
+
+            TextColor3 =
+                self.Scheme.DangerColor
         })
+
     end)
 
     close.MouseLeave:Connect(function()
+
         Tween(close, {
-            BackgroundColor3 = Color3.fromRGB(30, 30, 38),
-            TextColor3 = self.Scheme.SubTextColor
+            BackgroundColor3 =
+                self.Scheme.ElementColor,
+
+            TextColor3 =
+                self.Scheme.SubTextColor
         })
+
     end)
 
     close.MouseButton1Click:Connect(function()
@@ -341,21 +390,25 @@ function Library:CreateWindow(settings)
     --------------------------------------------------------
 
     do
+
         local dragging = false
         local dragStart
         local startPosition
 
-        top.InputBegan:Connect(function(input)
+        header.InputBegan:Connect(function(input)
 
             if input.UserInputType ==
                 Enum.UserInputType.MouseButton1 then
 
                 dragging = true
 
-                dragStart = input.Position
+                dragStart =
+                    input.Position
 
-                startPosition = window.Position
+                startPosition =
+                    window.Position
             end
+
         end)
 
         UserInputService.InputChanged:Connect(function(input)
@@ -366,19 +419,23 @@ function Library:CreateWindow(settings)
 
             if input.UserInputType ~=
                 Enum.UserInputType.MouseMovement then
+
                 return
             end
 
             local delta =
-                input.Position - dragStart
+                input.Position -
+                dragStart
 
-            window.Position = UDim2.new(
-                startPosition.X.Scale,
-                startPosition.X.Offset + delta.X,
+            window.Position =
+                UDim2.new(
+                    startPosition.X.Scale,
+                    startPosition.X.Offset + delta.X,
 
-                startPosition.Y.Scale,
-                startPosition.Y.Offset + delta.Y
-            )
+                    startPosition.Y.Scale,
+                    startPosition.Y.Offset + delta.Y
+                )
+
         end)
 
         UserInputService.InputEnded:Connect(function(input)
@@ -388,7 +445,9 @@ function Library:CreateWindow(settings)
 
                 dragging = false
             end
+
         end)
+
     end
 
     --------------------------------------------------------
@@ -396,51 +455,59 @@ function Library:CreateWindow(settings)
     --------------------------------------------------------
 
     local body = Create("Frame", {
-        Position = UDim2.fromOffset(10, 64),
+        Position =
+            UDim2.fromOffset(10, 58),
 
-        Size = UDim2.new(1, -20, 1, -74),
+        Size =
+            UDim2.new(1, -20, 1, -68),
 
         BackgroundTransparency = 1
     }, window)
 
     --------------------------------------------------------
-    -- NAVIGATION
+    -- SIDEBAR
     --------------------------------------------------------
 
-    local navigation = Create("Frame", {
-        Size = UDim2.new(0, 155, 1, 0),
+    local sidebar = Create("Frame", {
+        Size =
+            UDim2.new(0, 160, 1, 0),
 
-        BackgroundColor3 = Color3.fromRGB(11, 12, 17),
+        BackgroundColor3 =
+            self.Scheme.SidebarColor,
 
         BorderSizePixel = 0
     }, body)
 
-    Corner(navigation, 14)
+    Corner(sidebar, 10)
 
-    Padding(
-        navigation,
-        8,
-        8,
-        10,
-        10
+    AddPadding(
+        sidebar,
+        7,
+        7,
+        9,
+        9
     )
 
-    self.Navigation = navigation
+    self.Navigation = sidebar
 
-    local navLayout = Create("UIListLayout", {
-        Padding = UDim.new(0, 5),
+    Create("UIListLayout", {
+        Padding =
+            UDim.new(0, 4),
 
-        SortOrder = Enum.SortOrder.LayoutOrder
-    }, navigation)
+        SortOrder =
+            Enum.SortOrder.LayoutOrder
+    }, sidebar)
 
     --------------------------------------------------------
     -- CONTENT
     --------------------------------------------------------
 
     local content = Create("Frame", {
-        Position = UDim2.fromOffset(165, 0),
+        Position =
+            UDim2.fromOffset(170, 0),
 
-        Size = UDim2.new(1, -165, 1, 0),
+        Size =
+            UDim2.new(1, -170, 1, 0),
 
         BackgroundTransparency = 1
     }, body)
@@ -461,26 +528,29 @@ function Library:AddTab(name, icon)
 
     assert(
         self.Navigation,
-        "CreateWindow must be called first"
+        "Library:CreateWindow must be called first"
     )
 
     local tab = setmetatable({
+
         Name = name,
         Icon = icon,
 
         Groupboxes = {},
         LeftGroupboxes = {},
         RightGroupboxes = {}
+
     }, Tab)
 
     --------------------------------------------------------
-    -- TAB BUTTON
+    -- BUTTON
     --------------------------------------------------------
 
     local button = Create("TextButton", {
         Name = name,
 
-        Size = UDim2.new(1, 0, 0, 38),
+        Size =
+            UDim2.new(1, 0, 0, 37),
 
         BackgroundTransparency = 1,
 
@@ -488,51 +558,66 @@ function Library:AddTab(name, icon)
 
         AutoButtonColor = false,
 
-        LayoutOrder = #self.TabButtons + 1
+        LayoutOrder =
+            #self.TabButtons + 1
     }, self.Navigation)
 
-    Corner(button, 10)
+    Corner(button, 8)
 
     --------------------------------------------------------
-    -- ACTIVE BAR
+    -- SELECTED INDICATOR
     --------------------------------------------------------
 
-    local active = Create("Frame", {
-        Position = UDim2.fromOffset(0, 9),
+    local indicator = Create("Frame", {
+        Position =
+            UDim2.fromOffset(0, 8),
 
-        Size = UDim2.fromOffset(3, 20),
+        Size =
+            UDim2.fromOffset(3, 21),
 
-        BackgroundColor3 = self.Scheme.AccentColor,
+        BackgroundColor3 =
+            self.Scheme.AccentColor,
 
         BackgroundTransparency = 1,
 
         BorderSizePixel = 0
     }, button)
 
-    Corner(active, 2)
+    Corner(indicator, 2)
 
     --------------------------------------------------------
     -- ICON
     --------------------------------------------------------
 
-    local iconLabel
+    local iconObject
 
     if icon then
 
-        iconLabel = Create("TextLabel", {
-            Position = UDim2.fromOffset(14, 0),
+        iconObject = Create("TextLabel", {
+            Position =
+                UDim2.fromOffset(13, 0),
 
-            Size = UDim2.fromOffset(20, 38),
+            Size =
+                UDim2.fromOffset(22, 37),
 
             BackgroundTransparency = 1,
 
-            Text = tostring(icon),
+            Text =
+                tostring(icon),
 
-            TextColor3 = self.Scheme.SubTextColor,
+            TextColor3 =
+                self.Scheme.SubTextColor,
 
-            FontFace = Font.fromEnum(Enum.Font.GothamMedium),
+            FontFace =
+                Font.fromEnum(Enum.Font.GothamMedium),
 
-            TextSize = 13
+            TextSize = 13,
+
+            TextXAlignment =
+                Enum.TextXAlignment.Center,
+
+            TextYAlignment =
+                Enum.TextYAlignment.Center
         }, button)
 
     end
@@ -542,29 +627,38 @@ function Library:AddTab(name, icon)
     --------------------------------------------------------
 
     local text = Create("TextLabel", {
-        Position = UDim2.fromOffset(
-            icon and 40 or 14,
-            0
-        ),
+        Position =
+            UDim2.fromOffset(
+                icon and 42 or 14,
+                0
+            ),
 
-        Size = UDim2.new(
-            1,
-            icon and -48 or -22,
-            1,
-            0
-        ),
+        Size =
+            UDim2.new(
+                1,
+                icon and -48 or -20,
+                1,
+                0
+            ),
 
         BackgroundTransparency = 1,
 
-        Text = name,
+        Text =
+            name,
 
-        TextColor3 = self.Scheme.SubTextColor,
+        TextColor3 =
+            self.Scheme.SubTextColor,
 
-        FontFace = Font.fromEnum(Enum.Font.GothamMedium),
+        FontFace =
+            Font.fromEnum(Enum.Font.GothamMedium),
 
-        TextSize = 12,
+        TextSize = 11,
 
-        TextXAlignment = Enum.TextXAlignment.Left
+        TextXAlignment =
+            Enum.TextXAlignment.Left,
+
+        TextYAlignment =
+            Enum.TextYAlignment.Center
     }, button)
 
     --------------------------------------------------------
@@ -572,9 +666,11 @@ function Library:AddTab(name, icon)
     --------------------------------------------------------
 
     local page = Create("ScrollingFrame", {
-        Name = name .. "_Page",
+        Name =
+            name .. "_Page",
 
-        Size = UDim2.fromScale(1, 1),
+        Size =
+            UDim2.fromScale(1, 1),
 
         BackgroundTransparency = 1,
 
@@ -582,27 +678,32 @@ function Library:AddTab(name, icon)
 
         ScrollBarThickness = 2,
 
-        ScrollBarImageColor3 = self.Scheme.AccentColor,
+        ScrollBarImageColor3 =
+            self.Scheme.AccentColor,
 
-        CanvasSize = UDim2.new(),
+        AutomaticCanvasSize =
+            Enum.AutomaticSize.Y,
 
-        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        CanvasSize =
+            UDim2.new(),
 
         Visible = false
     }, self.Content)
 
-    Padding(
+    AddPadding(
         page,
-        8,
-        8,
+        7,
+        7,
         5,
-        12
+        10
     )
 
     local columns = Create("Frame", {
-        Size = UDim2.new(1, 0, 0, 0),
+        Size =
+            UDim2.new(1, 0, 0, 0),
 
-        AutomaticSize = Enum.AutomaticSize.Y,
+        AutomaticSize =
+            Enum.AutomaticSize.Y,
 
         BackgroundTransparency = 1
     }, page)
@@ -612,17 +713,21 @@ function Library:AddTab(name, icon)
     --------------------------------------------------------
 
     local left = Create("Frame", {
-        Size = UDim2.new(0.5, -6, 0, 0),
+        Size =
+            UDim2.new(0.5, -5, 0, 0),
 
-        AutomaticSize = Enum.AutomaticSize.Y,
+        AutomaticSize =
+            Enum.AutomaticSize.Y,
 
         BackgroundTransparency = 1
     }, columns)
 
-    local leftLayout = Create("UIListLayout", {
-        Padding = UDim.new(0, 9),
+    Create("UIListLayout", {
+        Padding =
+            UDim.new(0, 8),
 
-        SortOrder = Enum.SortOrder.LayoutOrder
+        SortOrder =
+            Enum.SortOrder.LayoutOrder
     }, left)
 
     --------------------------------------------------------
@@ -630,19 +735,24 @@ function Library:AddTab(name, icon)
     --------------------------------------------------------
 
     local right = Create("Frame", {
-        Position = UDim2.new(0.5, 6, 0, 0),
+        Position =
+            UDim2.new(0.5, 5, 0, 0),
 
-        Size = UDim2.new(0.5, -6, 0, 0),
+        Size =
+            UDim2.new(0.5, -5, 0, 0),
 
-        AutomaticSize = Enum.AutomaticSize.Y,
+        AutomaticSize =
+            Enum.AutomaticSize.Y,
 
         BackgroundTransparency = 1
     }, columns)
 
-    local rightLayout = Create("UIListLayout", {
-        Padding = UDim.new(0, 9),
+    Create("UIListLayout", {
+        Padding =
+            UDim.new(0, 8),
 
-        SortOrder = Enum.SortOrder.LayoutOrder
+        SortOrder =
+            Enum.SortOrder.LayoutOrder
     }, right)
 
     --------------------------------------------------------
@@ -653,16 +763,19 @@ function Library:AddTab(name, icon)
     tab.Page = page
     tab.Left = left
     tab.Right = right
-    tab.ActiveBar = active
-    tab.Text = text
-    tab.IconObject = iconLabel
+    tab.TextObject = text
+    tab.IconObject = iconObject
+    tab.Indicator = indicator
 
     self.Tabs[name] = tab
 
-    table.insert(self.TabButtons, tab)
+    table.insert(
+        self.TabButtons,
+        tab
+    )
 
     --------------------------------------------------------
-    -- EVENTS
+    -- HOVER
     --------------------------------------------------------
 
     button.MouseEnter:Connect(function()
@@ -671,12 +784,18 @@ function Library:AddTab(name, icon)
 
             Tween(button, {
                 BackgroundColor3 =
-                    self.Scheme.ElementHoverColor,
+                    self.Scheme.ElementColor,
 
-                BackgroundTransparency = 0.5
+                BackgroundTransparency = 0.45
+            })
+
+            Tween(text, {
+                TextColor3 =
+                    self.Scheme.TextColor
             })
 
         end
+
     end)
 
     button.MouseLeave:Connect(function()
@@ -687,7 +806,13 @@ function Library:AddTab(name, icon)
                 BackgroundTransparency = 1
             })
 
+            Tween(text, {
+                TextColor3 =
+                    self.Scheme.SubTextColor
+            })
+
         end
+
     end)
 
     button.MouseButton1Click:Connect(function()
@@ -717,12 +842,15 @@ function Library:SelectTab(tab)
 
     self.ActiveTab = tab
 
-    for _, current in ipairs(self.TabButtons) do
+    for _, current in ipairs(
+        self.TabButtons
+    ) do
 
         local selected =
             current == tab
 
-        current.Page.Visible = selected
+        current.Page.Visible =
+            selected
 
         if selected then
 
@@ -730,23 +858,26 @@ function Library:SelectTab(tab)
                 BackgroundColor3 =
                     self.Scheme.AccentColor,
 
-                BackgroundTransparency = 0.88
+                BackgroundTransparency =
+                    0.82
             })
 
-            Tween(current.Text, {
+            Tween(current.TextObject, {
                 TextColor3 =
                     self.Scheme.TextColor
             })
 
-            Tween(current.ActiveBar, {
+            Tween(current.Indicator, {
                 BackgroundTransparency = 0
             })
 
             if current.IconObject then
+
                 Tween(current.IconObject, {
                     TextColor3 =
                         self.Scheme.TextColor
                 })
+
             end
 
         else
@@ -755,20 +886,22 @@ function Library:SelectTab(tab)
                 BackgroundTransparency = 1
             })
 
-            Tween(current.Text, {
+            Tween(current.TextObject, {
                 TextColor3 =
                     self.Scheme.SubTextColor
             })
 
-            Tween(current.ActiveBar, {
+            Tween(current.Indicator, {
                 BackgroundTransparency = 1
             })
 
             if current.IconObject then
+
                 Tween(current.IconObject, {
                     TextColor3 =
                         self.Scheme.SubTextColor
                 })
+
             end
         end
     end
@@ -782,21 +915,25 @@ local Groupbox = {}
 Groupbox.__index = Groupbox
 
 function Tab:AddLeftGroupbox(name, icon)
+
     return self:_CreateGroupbox(
         name,
         icon,
         self.Left,
         self.LeftGroupboxes
     )
+
 end
 
 function Tab:AddRightGroupbox(name, icon)
+
     return self:_CreateGroupbox(
         name,
         icon,
         self.Right,
         self.RightGroupboxes
     )
+
 end
 
 function Tab:_CreateGroupbox(
@@ -816,66 +953,52 @@ function Tab:_CreateGroupbox(
     -- CARD
     --------------------------------------------------------
 
-    local card = Create("Frame", {
-        Name = name,
+    local frame = Create("Frame", {
+        Name =
+            name,
 
-        Size = UDim2.new(1, 0, 0, 0),
+        Size =
+            UDim2.new(1, 0, 0, 0),
 
-        AutomaticSize = Enum.AutomaticSize.Y,
+        AutomaticSize =
+            Enum.AutomaticSize.Y,
 
         BackgroundColor3 =
-            self.Parent
-                and Library.Scheme.CardColor
-                or Library.Scheme.CardColor,
+            Library.Scheme.CardColor,
 
         BorderSizePixel = 0
     }, parent)
 
-    Corner(card, 14)
+    Corner(frame, 10)
 
-    --------------------------------------------------------
-    -- SUBTLE TOP LIGHT
-    --------------------------------------------------------
-
-    local topLine = Create("Frame", {
-        Position = UDim2.fromOffset(14, 0),
-
-        Size = UDim2.new(0, 35, 0, 2),
-
-        BackgroundColor3 =
-            Library.Scheme.AccentColor,
-
-        BackgroundTransparency = 0.45,
-
-        BorderSizePixel = 0
-    }, card)
-
-    Corner(topLine, 2)
+    AddStroke(
+        frame,
+        Library.Scheme.BorderColor,
+        0.35
+    )
 
     --------------------------------------------------------
     -- HEADER
     --------------------------------------------------------
 
     local header = Create("Frame", {
-        Size = UDim2.new(1, 0, 0, 44),
+        Size =
+            UDim2.new(1, 0, 0, 43),
 
         BackgroundTransparency = 1
-    }, card)
-
-    Padding(
-        header,
-        14,
-        14,
-        8,
-        4
-    )
+    }, frame)
 
     local title = Create("TextLabel", {
-        Size = UDim2.new(1, 0, 1, 0),
+        Position =
+            UDim2.fromOffset(13, 0),
+
+        Size =
+            UDim2.new(1, -26, 1, 0),
 
         BackgroundTransparency = 1,
 
-        Text = name,
+        Text =
+            name,
 
         TextColor3 =
             Library.Scheme.TextColor,
@@ -883,7 +1006,7 @@ function Tab:_CreateGroupbox(
         FontFace =
             Font.fromEnum(Enum.Font.GothamSemibold),
 
-        TextSize = 13,
+        TextSize = 12,
 
         TextXAlignment =
             Enum.TextXAlignment.Left,
@@ -893,39 +1016,51 @@ function Tab:_CreateGroupbox(
     }, header)
 
     --------------------------------------------------------
-    -- ELEMENT HOLDER
+    -- ELEMENT CONTAINER
     --------------------------------------------------------
 
-    local holder = Create("Frame", {
-        Position = UDim2.fromOffset(13, 42),
+    local container = Create("Frame", {
+        Position =
+            UDim2.fromOffset(12, 40),
 
-        Size = UDim2.new(1, -26, 0, 0),
+        Size =
+            UDim2.new(1, -24, 0, 0),
 
-        AutomaticSize = Enum.AutomaticSize.Y,
+        AutomaticSize =
+            Enum.AutomaticSize.Y,
 
         BackgroundTransparency = 1
-    }, card)
+    }, frame)
 
-    Padding(
-        holder,
+    AddPadding(
+        container,
         0,
         0,
         0,
-        13
+        12
     )
 
-    local layout = Create("UIListLayout", {
-        Padding = UDim.new(0, 7),
+    Create("UIListLayout", {
+        Padding =
+            UDim.new(0, 6),
 
-        SortOrder = Enum.SortOrder.LayoutOrder
-    }, holder)
+        SortOrder =
+            Enum.SortOrder.LayoutOrder
+    }, container)
 
-    box.Frame = card
-    box.Container = holder
+    box.Frame = frame
+    box.Container = container
     box.Title = title
 
-    table.insert(collection, box)
-    table.insert(self.Groupboxes, box)
+    table.insert(
+        collection,
+        box
+    )
+
+    table.insert(
+        self.Groupboxes,
+        box
+    )
 
     return box
 end
@@ -937,16 +1072,18 @@ end
 function Groupbox:AddLabel(text, wrap)
 
     local label = Create("TextLabel", {
-        Size = UDim2.new(
-            1,
-            0,
-            0,
-            wrap and 38 or 22
-        ),
+        Size =
+            UDim2.new(
+                1,
+                0,
+                0,
+                wrap and 38 or 22
+            ),
 
         BackgroundTransparency = 1,
 
-        Text = text,
+        Text =
+            tostring(text),
 
         TextColor3 =
             Library.Scheme.SubTextColor,
@@ -956,7 +1093,8 @@ function Groupbox:AddLabel(text, wrap)
 
         TextSize = 11,
 
-        TextWrapped = wrap or false,
+        TextWrapped =
+            wrap or false,
 
         TextXAlignment =
             Enum.TextXAlignment.Left,
@@ -965,7 +1103,10 @@ function Groupbox:AddLabel(text, wrap)
             Enum.TextYAlignment.Center
     }, self.Container)
 
-    table.insert(self.Elements, label)
+    table.insert(
+        self.Elements,
+        label
+    )
 
     return label
 end
@@ -977,17 +1118,21 @@ end
 function Groupbox:AddDivider()
 
     local divider = Create("Frame", {
-        Size = UDim2.new(1, 0, 0, 1),
+        Size =
+            UDim2.new(1, 0, 0, 1),
 
         BackgroundColor3 =
             Library.Scheme.BorderColor,
 
-        BackgroundTransparency = 0.65,
+        BackgroundTransparency = 0.4,
 
         BorderSizePixel = 0
     }, self.Container)
 
-    table.insert(self.Elements, divider)
+    table.insert(
+        self.Elements,
+        divider
+    )
 
     return divider
 end
@@ -1007,14 +1152,16 @@ function Groupbox:AddButton(info)
     info = info or {}
 
     local button = Create("TextButton", {
-        Size = UDim2.new(1, 0, 0, 34),
+        Size =
+            UDim2.new(1, 0, 0, 34),
 
         BackgroundColor3 =
             Library.Scheme.ElementColor,
 
         BorderSizePixel = 0,
 
-        Text = info.Text or "Button",
+        Text =
+            info.Text or "Button",
 
         TextColor3 =
             Library.Scheme.TextColor,
@@ -1027,7 +1174,7 @@ function Groupbox:AddButton(info)
         AutoButtonColor = false
     }, self.Container)
 
-    Corner(button, 9)
+    Corner(button, 8)
 
     button.MouseEnter:Connect(function()
 
@@ -1050,7 +1197,8 @@ function Groupbox:AddButton(info)
     button.MouseButton1Click:Connect(function()
 
         local callback =
-            info.Callback or info.Func
+            info.Callback
+            or info.Func
 
         if callback then
             callback()
@@ -1058,7 +1206,10 @@ function Groupbox:AddButton(info)
 
     end)
 
-    table.insert(self.Elements, button)
+    table.insert(
+        self.Elements,
+        button
+    )
 
     return button
 end
@@ -1075,9 +1226,11 @@ function Groupbox:AddToggle(name, info)
     info = info or {}
 
     local object = setmetatable({
+
         Name = name,
 
-        Value = info.Default or false,
+        Value =
+            info.Default == true,
 
         Callback =
             info.Callback
@@ -1086,28 +1239,24 @@ function Groupbox:AddToggle(name, info)
         Changed =
             info.Changed
             or function() end
+
     }, Toggle)
 
-    --------------------------------------------------------
-    -- HOLDER
-    --------------------------------------------------------
-
     local holder = Create("Frame", {
-        Size = UDim2.new(1, 0, 0, 34),
+        Size =
+            UDim2.new(1, 0, 0, 34),
 
         BackgroundTransparency = 1
     }, self.Container)
 
-    --------------------------------------------------------
-    -- TEXT
-    --------------------------------------------------------
-
     local label = Create("TextLabel", {
-        Size = UDim2.new(1, -55, 1, 0),
+        Size =
+            UDim2.new(1, -55, 1, 0),
 
         BackgroundTransparency = 1,
 
-        Text = info.Text or name,
+        Text =
+            info.Text or name,
 
         TextColor3 =
             Library.Scheme.TextColor,
@@ -1115,17 +1264,13 @@ function Groupbox:AddToggle(name, info)
         FontFace =
             Font.fromEnum(Enum.Font.Gotham),
 
-        TextSize = 12,
+        TextSize = 11,
 
         TextXAlignment =
             Enum.TextXAlignment.Left
     }, holder)
 
-    --------------------------------------------------------
-    -- TOGGLE
-    --------------------------------------------------------
-
-    local toggle = Create("TextButton", {
+    local switch = Create("TextButton", {
         AnchorPoint =
             Vector2.new(1, 0.5),
 
@@ -1136,7 +1281,7 @@ function Groupbox:AddToggle(name, info)
             UDim2.fromOffset(38, 20),
 
         BackgroundColor3 =
-            Color3.fromRGB(40, 41, 49),
+            Color3.fromRGB(48, 49, 57),
 
         BorderSizePixel = 0,
 
@@ -1145,7 +1290,7 @@ function Groupbox:AddToggle(name, info)
         AutoButtonColor = false
     }, holder)
 
-    Corner(toggle, 10)
+    Corner(switch, 10)
 
     local knob = Create("Frame", {
         AnchorPoint =
@@ -1158,28 +1303,25 @@ function Groupbox:AddToggle(name, info)
             UDim2.fromOffset(14, 14),
 
         BackgroundColor3 =
-            Color3.fromRGB(190, 191, 198),
+            Color3.fromRGB(185, 186, 193),
 
         BorderSizePixel = 0
-    }, toggle)
+    }, switch)
 
     Corner(knob, 7)
 
-    object.Toggle = toggle
+    object.Toggle = switch
     object.Knob = knob
     object.Label = label
 
-    --------------------------------------------------------
-    -- UPDATE
-    --------------------------------------------------------
-
     local function update(value, silent)
 
-        object.Value = value == true
+        object.Value =
+            value == true
 
         if object.Value then
 
-            Tween(toggle, {
+            Tween(switch, {
                 BackgroundColor3 =
                     Library.Scheme.AccentColor
             })
@@ -1189,14 +1331,16 @@ function Groupbox:AddToggle(name, info)
                     UDim2.new(1, -17, 0.5, 0),
 
                 BackgroundColor3 =
-                    Color3.fromRGB(255,255,255)
+                    Color3.fromRGB(
+                        255,255,255
+                    )
             })
 
         else
 
-            Tween(toggle, {
+            Tween(switch, {
                 BackgroundColor3 =
-                    Color3.fromRGB(40,41,49)
+                    Color3.fromRGB(48,49,57)
             })
 
             Tween(knob, {
@@ -1204,14 +1348,23 @@ function Groupbox:AddToggle(name, info)
                     UDim2.new(0, 3, 0.5, 0),
 
                 BackgroundColor3 =
-                    Color3.fromRGB(190,191,198)
+                    Color3.fromRGB(
+                        185,186,193
+                    )
             })
 
         end
 
         if not silent then
-            object.Callback(object.Value)
-            object.Changed(object.Value)
+
+            object.Callback(
+                object.Value
+            )
+
+            object.Changed(
+                object.Value
+            )
+
         end
     end
 
@@ -1224,20 +1377,33 @@ function Groupbox:AddToggle(name, info)
     end
 
     function object:OnChanged(callback)
-        object.Changed = callback
+
+        object.Changed =
+            callback
+
         return object
     end
 
-    toggle.MouseButton1Click:Connect(function()
-        update(not object.Value)
+    switch.MouseButton1Click:Connect(function()
+
+        update(
+            not object.Value
+        )
+
     end)
 
-    update(object.Value, true)
+    update(
+        object.Value,
+        true
+    )
 
     Library.Toggles[name] = object
     Library.Options[name] = object
 
-    table.insert(self.Elements, object)
+    table.insert(
+        self.Elements,
+        object
+    )
 
     return object
 end
@@ -1283,17 +1449,20 @@ function Groupbox:AddSlider(name, info)
     }, Slider)
 
     local holder = Create("Frame", {
-        Size = UDim2.new(1, 0, 0, 48),
+        Size =
+            UDim2.new(1, 0, 0, 48),
 
         BackgroundTransparency = 1
     }, self.Container)
 
-    local nameLabel = Create("TextLabel", {
-        Size = UDim2.new(1, -60, 0, 19),
+    local title = Create("TextLabel", {
+        Size =
+            UDim2.new(1, -65, 0, 19),
 
         BackgroundTransparency = 1,
 
-        Text = info.Text or name,
+        Text =
+            info.Text or name,
 
         TextColor3 =
             Library.Scheme.TextColor,
@@ -1301,13 +1470,13 @@ function Groupbox:AddSlider(name, info)
         FontFace =
             Font.fromEnum(Enum.Font.Gotham),
 
-        TextSize = 12,
+        TextSize = 11,
 
         TextXAlignment =
             Enum.TextXAlignment.Left
     }, holder)
 
-    local valueLabel = Create("TextLabel", {
+    local valueText = Create("TextLabel", {
         AnchorPoint =
             Vector2.new(1, 0),
 
@@ -1315,7 +1484,7 @@ function Groupbox:AddSlider(name, info)
             UDim2.new(1, 0, 0, 0),
 
         Size =
-            UDim2.fromOffset(60, 19),
+            UDim2.fromOffset(65, 19),
 
         BackgroundTransparency = 1,
 
@@ -1331,19 +1500,15 @@ function Groupbox:AddSlider(name, info)
             Enum.TextXAlignment.Right
     }, holder)
 
-    --------------------------------------------------------
-    -- BAR
-    --------------------------------------------------------
-
     local bar = Create("Frame", {
         Position =
-            UDim2.fromOffset(0, 29),
+            UDim2.fromOffset(0, 30),
 
         Size =
             UDim2.new(1, 0, 0, 5),
 
         BackgroundColor3 =
-            Color3.fromRGB(38,39,47),
+            Color3.fromRGB(48,49,57),
 
         BorderSizePixel = 0
     }, holder)
@@ -1351,7 +1516,8 @@ function Groupbox:AddSlider(name, info)
     Corner(bar, 3)
 
     local fill = Create("Frame", {
-        Size = UDim2.fromScale(0,1),
+        Size =
+            UDim2.fromScale(0, 1),
 
         BackgroundColor3 =
             Library.Scheme.AccentColor,
@@ -1379,11 +1545,10 @@ function Groupbox:AddSlider(name, info)
 
     Corner(knob, 6)
 
-    --------------------------------------------------------
-    -- VALUE
-    --------------------------------------------------------
-
-    local function setValue(value, silent)
+    local function setValue(
+        value,
+        silent
+    )
 
         value =
             math.clamp(
@@ -1394,25 +1559,42 @@ function Groupbox:AddSlider(name, info)
 
         object.Value = value
 
-        local alpha =
-            (value - min) /
-            (max - min)
+        local alpha
+
+        if max == min then
+            alpha = 0
+        else
+            alpha =
+                (value - min) /
+                (max - min)
+        end
 
         fill.Size =
-            UDim2.fromScale(alpha,1)
+            UDim2.fromScale(
+                alpha,
+                1
+            )
 
         knob.Position =
-            UDim2.fromScale(alpha,0.5)
+            UDim2.fromScale(
+                alpha,
+                0.5
+            )
 
-        valueLabel.Text =
-            tostring(info.Prefix or "")
-            .. tostring(value)
-            .. tostring(info.Suffix or "")
+        valueText.Text =
+            tostring(
+                info.Prefix or ""
+            )
+            ..
+            tostring(value)
+            ..
+            tostring(
+                info.Suffix or ""
+            )
 
         if not silent then
 
             object.Callback(value)
-
             object.Changed(value)
 
         end
@@ -1420,15 +1602,16 @@ function Groupbox:AddSlider(name, info)
 
     local dragging = false
 
-    local function update(input)
+    local function updateFromInput(input)
 
-        local x =
+        local position =
             input.Position.X -
             bar.AbsolutePosition.X
 
         local percent =
             math.clamp(
-                x / bar.AbsoluteSize.X,
+                position /
+                    bar.AbsoluteSize.X,
                 0,
                 1
             )
@@ -1446,7 +1629,8 @@ function Groupbox:AddSlider(name, info)
 
             dragging = true
 
-            update(input)
+            updateFromInput(input)
+
         end
     end)
 
@@ -1456,7 +1640,8 @@ function Groupbox:AddSlider(name, info)
             input.UserInputType ==
             Enum.UserInputType.MouseMovement then
 
-            update(input)
+            updateFromInput(input)
+
         end
     end)
 
@@ -1466,6 +1651,7 @@ function Groupbox:AddSlider(name, info)
             Enum.UserInputType.MouseButton1 then
 
             dragging = false
+
         end
     end)
 
@@ -1478,15 +1664,180 @@ function Groupbox:AddSlider(name, info)
     end
 
     function object:OnChanged(callback)
-        object.Changed = callback
+
+        object.Changed =
+            callback
+
         return object
     end
 
-    setValue(default, true)
+    setValue(
+        default,
+        true
+    )
 
     Library.Options[name] = object
 
-    table.insert(self.Elements, object)
+    table.insert(
+        self.Elements,
+        object
+    )
+
+    return object
+end
+
+------------------------------------------------------------
+-- INPUT
+------------------------------------------------------------
+
+function Groupbox:AddInput(name, info)
+
+    info = info or {}
+
+    local holder = Create("Frame", {
+        Size =
+            UDim2.new(1, 0, 0, 62),
+
+        BackgroundTransparency = 1
+    }, self.Container)
+
+    Create("TextLabel", {
+        Size =
+            UDim2.new(1, 0, 0, 19),
+
+        BackgroundTransparency = 1,
+
+        Text =
+            info.Text or name,
+
+        TextColor3 =
+            Library.Scheme.TextColor,
+
+        FontFace =
+            Font.fromEnum(Enum.Font.Gotham),
+
+        TextSize = 11,
+
+        TextXAlignment =
+            Enum.TextXAlignment.Left
+    }, holder)
+
+    local input = Create("TextBox", {
+        Position =
+            UDim2.fromOffset(0, 25),
+
+        Size =
+            UDim2.new(1, 0, 0, 32),
+
+        BackgroundColor3 =
+            Library.Scheme.ElementColor,
+
+        BorderSizePixel = 0,
+
+        Text =
+            tostring(
+                info.Default or ""
+            ),
+
+        PlaceholderText =
+            info.Placeholder or "",
+
+        PlaceholderColor3 =
+            Library.Scheme.SubTextColor,
+
+        TextColor3 =
+            Library.Scheme.TextColor,
+
+        FontFace =
+            Font.fromEnum(Enum.Font.Gotham),
+
+        TextSize = 10,
+
+        ClearTextOnFocus =
+            info.ClearTextOnFocus ~= false,
+
+        TextXAlignment =
+            Enum.TextXAlignment.Left
+    }, holder)
+
+    Corner(input, 8)
+
+    AddPadding(
+        input,
+        9,
+        9,
+        0,
+        0
+    )
+
+    local object = {
+
+        Name = name,
+
+        Input = input,
+
+        Value = input.Text,
+
+        Callback =
+            info.Callback
+            or function() end,
+
+        Changed =
+            info.Changed
+            or function() end
+
+    }
+
+    function object:SetValue(value)
+
+        input.Text =
+            tostring(value)
+
+        object.Value =
+            input.Text
+
+        object.Callback(
+            object.Value
+        )
+
+        object.Changed(
+            object.Value
+        )
+    end
+
+    function object:GetValue()
+        return input.Text
+    end
+
+    function object:OnChanged(callback)
+
+        object.Changed =
+            callback
+
+        return object
+    end
+
+    input.FocusLost:Connect(function()
+
+        object.Value =
+            input.Text
+
+        object.Callback(
+            input.Text
+        )
+
+        object.Changed(
+            input.Text
+        )
+
+    end)
+
+    Library.Options[name] = object
+
+    table.insert(
+        self.Elements,
+        object
+    )
 
     return object
 end
@@ -1526,19 +1877,20 @@ function Groupbox:AddDropdown(name, info)
     }, Dropdown)
 
     local holder = Create("Frame", {
-        Size = UDim2.new(1,0,0,38),
+        Size =
+            UDim2.new(1, 0, 0, 38),
 
         BackgroundTransparency = 1
     }, self.Container)
 
     local label = Create("TextLabel", {
-        Size = UDim2.new(0.38,0,1,0),
+        Size =
+            UDim2.new(0.37, 0, 1, 0),
 
         BackgroundTransparency = 1,
 
         Text =
-            info.Text
-            or name,
+            info.Text or name,
 
         TextColor3 =
             Library.Scheme.TextColor,
@@ -1546,7 +1898,7 @@ function Groupbox:AddDropdown(name, info)
         FontFace =
             Font.fromEnum(Enum.Font.Gotham),
 
-        TextSize = 12,
+        TextSize = 11,
 
         TextXAlignment =
             Enum.TextXAlignment.Left
@@ -1554,13 +1906,13 @@ function Groupbox:AddDropdown(name, info)
 
     local select = Create("TextButton", {
         AnchorPoint =
-            Vector2.new(1,0.5),
+            Vector2.new(1, 0.5),
 
         Position =
-            UDim2.new(1,0,0.5,0),
+            UDim2.new(1, 0, 0.5, 0),
 
         Size =
-            UDim2.new(0.58,0,0,32),
+            UDim2.new(0.63, 0, 0, 32),
 
         BackgroundColor3 =
             Library.Scheme.ElementColor,
@@ -1569,22 +1921,27 @@ function Groupbox:AddDropdown(name, info)
 
         Text = "",
 
-        AutoButtonColor = false
+        AutoButtonColor = false,
+
+        ZIndex = 10
     }, holder)
 
-    Corner(select, 9)
+    Corner(select, 8)
 
     local selected = Create("TextLabel", {
         Position =
-            UDim2.fromOffset(10,0),
+            UDim2.fromOffset(9, 0),
 
         Size =
-            UDim2.new(1,-30,1,0),
+            UDim2.new(1, -30, 1, 0),
 
         BackgroundTransparency = 1,
 
         Text =
-            tostring(object.Value or "Select"),
+            tostring(
+                object.Value
+                or "Select"
+            ),
 
         TextColor3 =
             Library.Scheme.SubTextColor,
@@ -1595,18 +1952,20 @@ function Groupbox:AddDropdown(name, info)
         TextSize = 10,
 
         TextXAlignment =
-            Enum.TextXAlignment.Left
+            Enum.TextXAlignment.Left,
+
+        ZIndex = 11
     }, select)
 
-    local arrow = Create("TextLabel", {
+    Create("TextLabel", {
         AnchorPoint =
-            Vector2.new(1,0.5),
+            Vector2.new(1, 0.5),
 
         Position =
-            UDim2.new(1,-8,0.5,0),
+            UDim2.new(1, -8, 0.5, 0),
 
         Size =
-            UDim2.fromOffset(14,14),
+            UDim2.fromOffset(12, 14),
 
         BackgroundTransparency = 1,
 
@@ -1618,19 +1977,17 @@ function Groupbox:AddDropdown(name, info)
         FontFace =
             Font.fromEnum(Enum.Font.GothamBold),
 
-        TextSize = 13
-    }, select)
+        TextSize = 12,
 
-    --------------------------------------------------------
-    -- LIST
-    --------------------------------------------------------
+        ZIndex = 11
+    }, select)
 
     local list = Create("Frame", {
         Position =
-            UDim2.new(0,0,1,4),
+            UDim2.new(0, 0, 1, 4),
 
         Size =
-            UDim2.new(1,0,0,0),
+            UDim2.new(1, 0, 0, 0),
 
         BackgroundColor3 =
             Library.Scheme.CardColor,
@@ -1639,35 +1996,40 @@ function Groupbox:AddDropdown(name, info)
 
         Visible = false,
 
-        ZIndex = 50,
-
-        ClipsDescendants = true
+        ZIndex = 100
     }, select)
 
-    Corner(list, 9)
+    Corner(list, 8)
 
-    Stroke(
+    AddStroke(
         list,
         Library.Scheme.BorderColor,
-        0.3
+        0.15
     )
 
-    Padding(
+    AddPadding(
         list,
-        4,4,4,4
+        4,
+        4,
+        4,
+        4
     )
 
-    local listLayout = Create("UIListLayout", {
-        Padding = UDim.new(0,2),
+    Create("UIListLayout", {
+        Padding =
+            UDim.new(0, 2),
 
-        SortOrder = Enum.SortOrder.LayoutOrder
+        SortOrder =
+            Enum.SortOrder.LayoutOrder
     }, list)
 
     local opened = false
 
     local function refresh()
 
-        for _, child in ipairs(list:GetChildren()) do
+        for _, child in ipairs(
+            list:GetChildren()
+        ) do
 
             if child:IsA("TextButton") then
                 child:Destroy()
@@ -1679,7 +2041,7 @@ function Groupbox:AddDropdown(name, info)
 
             local option = Create("TextButton", {
                 Size =
-                    UDim2.new(1,0,0,28),
+                    UDim2.new(1, 0, 0, 28),
 
                 BackgroundTransparency = 1,
 
@@ -1696,12 +2058,12 @@ function Groupbox:AddDropdown(name, info)
 
                 AutoButtonColor = false,
 
-                ZIndex = 51,
+                ZIndex = 101,
 
                 LayoutOrder = index
             }, list)
 
-            Corner(option, 7)
+            Corner(option, 6)
 
             option.MouseEnter:Connect(function()
 
@@ -1727,9 +2089,10 @@ function Groupbox:AddDropdown(name, info)
                 object:SetValue(value)
 
                 opened = false
-
                 list.Visible = false
+
             end)
+
         end
 
         list.Size =
@@ -1738,7 +2101,7 @@ function Groupbox:AddDropdown(name, info)
                 0,
                 0,
                 math.min(
-                    (#values * 30) + 8,
+                    #values * 30 + 8,
                     190
                 )
             )
@@ -1752,8 +2115,8 @@ function Groupbox:AddDropdown(name, info)
             tostring(value)
 
         object.Callback(value)
-
         object.Changed(value)
+
     end
 
     function object:GetValue()
@@ -1765,174 +2128,40 @@ function Groupbox:AddDropdown(name, info)
         values =
             newValues or {}
 
-        object.Values = values
+        object.Values =
+            values
 
         refresh()
     end
 
     function object:OnChanged(callback)
 
-        object.Changed = callback
+        object.Changed =
+            callback
 
         return object
     end
 
     select.MouseButton1Click:Connect(function()
 
-        opened = not opened
+        opened =
+            not opened
 
-        list.Visible = opened
+        list.Visible =
+            opened
 
         if opened then
             refresh()
         end
+
     end)
 
     Library.Options[name] = object
 
-    table.insert(self.Elements, object)
-
-    return object
-end
-
-------------------------------------------------------------
--- INPUT
-------------------------------------------------------------
-
-function Groupbox:AddInput(name, info)
-
-    info = info or {}
-
-    local holder = Create("Frame", {
-        Size =
-            UDim2.new(1,0,0,62),
-
-        BackgroundTransparency = 1
-    }, self.Container)
-
-    local label = Create("TextLabel", {
-        Size =
-            UDim2.new(1,0,0,18),
-
-        BackgroundTransparency = 1,
-
-        Text =
-            info.Text
-            or name,
-
-        TextColor3 =
-            Library.Scheme.TextColor,
-
-        FontFace =
-            Font.fromEnum(Enum.Font.Gotham),
-
-        TextSize = 12,
-
-        TextXAlignment =
-            Enum.TextXAlignment.Left
-    }, holder)
-
-    local input = Create("TextBox", {
-        Position =
-            UDim2.fromOffset(0,24),
-
-        Size =
-            UDim2.new(1,0,0,32),
-
-        BackgroundColor3 =
-            Library.Scheme.ElementColor,
-
-        BorderSizePixel = 0,
-
-        Text =
-            tostring(info.Default or ""),
-
-        PlaceholderText =
-            info.Placeholder or "",
-
-        PlaceholderColor3 =
-            Library.Scheme.SubTextColor,
-
-        TextColor3 =
-            Library.Scheme.TextColor,
-
-        FontFace =
-            Font.fromEnum(Enum.Font.Gotham),
-
-        TextSize = 10,
-
-        ClearTextOnFocus =
-            info.ClearTextOnFocus ~= false
-    }, holder)
-
-    Corner(input, 9)
-
-    Padding(
-        input,
-        10,10,0,0
+    table.insert(
+        self.Elements,
+        object
     )
-
-    local object = {
-        Name = name,
-
-        Input = input,
-
-        Value = input.Text,
-
-        Callback =
-            info.Callback
-            or function() end,
-
-        Changed =
-            info.Changed
-            or function() end
-    }
-
-    function object:SetValue(value)
-
-        input.Text =
-            tostring(value)
-
-        object.Value =
-            input.Text
-
-        object.Callback(
-            object.Value
-        )
-
-        object.Changed(
-            object.Value
-        )
-    end
-
-    function object:GetValue()
-        return input.Text
-    end
-
-    function object:OnChanged(callback)
-
-        object.Changed = callback
-
-        return object
-    end
-
-    input.FocusLost:Connect(function()
-
-        object.Value =
-            input.Text
-
-        object.Callback(
-            input.Text
-        )
-
-        object.Changed(
-            input.Text
-        )
-    end)
-
-    Library.Options[name] = object
-
-    table.insert(self.Elements, object)
 
     return object
 end
@@ -1955,15 +2184,15 @@ function Library:Notify(info)
 
     info = info or {}
 
-    local holder = Create("Frame", {
+    local notification = Create("Frame", {
         AnchorPoint =
-            Vector2.new(1,1),
+            Vector2.new(1, 1),
 
         Position =
-            UDim2.new(1,330,1,-20),
+            UDim2.new(1, 320, 1, -20),
 
         Size =
-            UDim2.fromOffset(310,78),
+            UDim2.fromOffset(300, 72),
 
         BackgroundColor3 =
             self.Scheme.CardColor,
@@ -1971,35 +2200,35 @@ function Library:Notify(info)
         BorderSizePixel = 0
     }, self.ScreenGui)
 
-    Corner(holder, 14)
+    Corner(notification, 10)
 
-    Stroke(
-        holder,
+    AddStroke(
+        notification,
         self.Scheme.BorderColor,
-        0.25
+        0.2
     )
 
     local accent = Create("Frame", {
         Position =
-            UDim2.fromOffset(0,16),
+            UDim2.fromOffset(0, 13),
 
         Size =
-            UDim2.fromOffset(3,46),
+            UDim2.fromOffset(3, 46),
 
         BackgroundColor3 =
             self.Scheme.AccentColor,
 
         BorderSizePixel = 0
-    }, holder)
+    }, notification)
 
-    Corner(accent,2)
+    Corner(accent, 2)
 
     Create("TextLabel", {
         Position =
-            UDim2.fromOffset(15,10),
+            UDim2.fromOffset(14, 9),
 
         Size =
-            UDim2.new(1,-30,0,20),
+            UDim2.new(1, -25, 0, 19),
 
         BackgroundTransparency = 1,
 
@@ -2013,18 +2242,18 @@ function Library:Notify(info)
         FontFace =
             Font.fromEnum(Enum.Font.GothamSemibold),
 
-        TextSize = 12,
+        TextSize = 11,
 
         TextXAlignment =
             Enum.TextXAlignment.Left
-    }, holder)
+    }, notification)
 
     Create("TextLabel", {
         Position =
-            UDim2.fromOffset(15,32),
+            UDim2.fromOffset(14, 30),
 
         Size =
-            UDim2.new(1,-30,0,32),
+            UDim2.new(1, -25, 0, 30),
 
         BackgroundTransparency = 1,
 
@@ -2047,38 +2276,44 @@ function Library:Notify(info)
 
         TextYAlignment =
             Enum.TextYAlignment.Top
-    }, holder)
+    }, notification)
 
-    Tween(holder, {
+    Tween(notification, {
         Position =
-            UDim2.new(1,-20,1,-20)
+            UDim2.new(1, -20, 1, -20)
     })
 
     task.delay(
         info.Time or 3,
         function()
 
-            if holder.Parent then
+            if notification.Parent then
 
-                Tween(holder, {
+                Tween(notification, {
                     Position =
-                        UDim2.new(1,330,1,-20)
+                        UDim2.new(
+                            1,
+                            320,
+                            1,
+                            -20
+                        )
                 })
 
-                task.wait(0.2)
+                task.wait(0.18)
 
-                if holder then
-                    holder:Destroy()
+                if notification then
+                    notification:Destroy()
                 end
+
             end
         end
     )
 
-    return holder
+    return notification
 end
 
 ------------------------------------------------------------
--- UI
+-- UI TOGGLE
 ------------------------------------------------------------
 
 function Library:Toggle()
@@ -2099,12 +2334,8 @@ function Library:ToggleUI()
 end
 
 ------------------------------------------------------------
--- THEME API
+-- THEME
 ------------------------------------------------------------
-
-function Library:UpdateColorsUsingRegistry()
-    return true
-end
 
 function Library:ApplyTheme(theme)
 
@@ -2115,11 +2346,17 @@ function Library:ApplyTheme(theme)
     for key, value in pairs(theme) do
 
         if self.Scheme[key] ~= nil then
-
-            self.Scheme[key] =
-                value
+            self.Scheme[key] = value
         end
+
     end
+
+    self.Colors = self.Scheme
+
+end
+
+function Library:UpdateColorsUsingRegistry()
+    return true
 end
 
 ------------------------------------------------------------
@@ -2140,11 +2377,12 @@ function Library:Unload()
 
     self.ScreenGui = nil
     self.Window = nil
+    self.ActiveTab = nil
 
-    self.Tabs = {}
-    self.TabButtons = {}
     self.Options = {}
     self.Toggles = {}
+    self.Tabs = {}
+    self.TabButtons = {}
 end
 
 return Library
