@@ -1946,7 +1946,7 @@ function Library:CreateWindow(options)
     -- DEFAULT WINDOW
     -----------------------------------------------------------------
 
-    Window:SelectTab = function(_, tab)
+       function Window:SelectTab(tab)
         if tab and tab.Select then
             tab:Select()
         end
@@ -1954,6 +1954,8 @@ function Library:CreateWindow(options)
 
     return Window
 end
+
+return Library
 
 ---------------------------------------------------------------------
 -- COMPATIBILITY HELPERS
