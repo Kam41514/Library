@@ -1,6 +1,6 @@
 --// MoonHub Custom Icon
---// Minimal Soft White Moon
---// Static / No Glow / No Outline / No Animation
+--// Minimal Soft White Crescent Moon
+--// No Glow / No Outline / No Animation
 
 local MoonIcon = {}
 
@@ -10,10 +10,11 @@ function MoonIcon.Create(Parent, Size, Position)
         return nil
     end
 
-    Size = Size or 21
+    -- Icon boyutu
+    Size = Size or 25
 
-    -- Biraz daha yukarı
-    Position = Position or UDim2.fromOffset(8, 0)
+    -- Yazıyla aynı hizada, solda hafif boşluk
+    Position = Position or UDim2.fromOffset(8, 1)
 
     ---------------------------------------------------------
     -- HOLDER
@@ -26,11 +27,10 @@ function MoonIcon.Create(Parent, Size, Position)
     Holder.BackgroundTransparency = 1
     Holder.BorderSizePixel = 0
 
-    Holder.Size =
-        UDim2.fromOffset(
-            Size,
-            Size
-        )
+    Holder.Size = UDim2.fromOffset(
+        Size,
+        Size
+    )
 
     Holder.Position = Position
 
@@ -38,7 +38,7 @@ function MoonIcon.Create(Parent, Size, Position)
     Holder.Parent = Parent
 
     ---------------------------------------------------------
-    -- SOFT WHITE MOON
+    -- WHITE MOON
     ---------------------------------------------------------
 
     local Moon = Instance.new("Frame")
@@ -60,137 +60,164 @@ function MoonIcon.Create(Parent, Size, Position)
             Size
         )
 
-    -- Koyu arka planda gözü yormayan soft beyaz
+    -- Soft white
     Moon.BackgroundColor3 =
         Color3.fromRGB(
-            218,
-            218,
-            224
+            220,
+            220,
+            225
         )
 
     Moon.BackgroundTransparency = 0
-
     Moon.BorderSizePixel = 0
 
     Moon.ZIndex = 101
     Moon.Parent = Holder
 
-    ---------------------------------------------------------
-    -- ROUND MOON
-    ---------------------------------------------------------
-
     local MoonCorner =
         Instance.new("UICorner")
 
     MoonCorner.CornerRadius =
-        UDim.new(
-            1,
-            0
-        )
+        UDim.new(1, 0)
 
     MoonCorner.Parent = Moon
 
     ---------------------------------------------------------
-    -- SUBTLE CRATERS
+    -- DARK CUTOUT
+    -- Sağ tarafı keserek hilal oluşturur
     ---------------------------------------------------------
 
-    local function CreateCrater(
-        X,
-        Y,
-        Scale,
-        Transparency
-    )
+    local Cutout = Instance.new("Frame")
 
-        local Crater =
-            Instance.new("Frame")
+    Cutout.Name = "MoonCutout"
 
-        Crater.Name =
-            "Crater"
+    Cutout.AnchorPoint =
+        Vector2.new(0.5, 0.5)
 
-        Crater.AnchorPoint =
-            Vector2.new(
-                0.5,
-                0.5
-            )
+    Cutout.Position =
+        UDim2.fromScale(
+            0.68,
+            0.38
+        )
 
-        Crater.Position =
-            UDim2.fromScale(
-                X,
-                Y
-            )
+    Cutout.Size =
+        UDim2.fromOffset(
+            Size * 0.86,
+            Size * 0.86
+        )
 
-        local CraterSize =
-            math.max(
-                2,
-                Size * Scale
-            )
+    -- Obsidian arka planıyla aynı koyu renk
+    Cutout.BackgroundColor3 =
+        Color3.fromRGB(
+            5,
+            5,
+            7
+        )
 
-        Crater.Size =
-            UDim2.fromOffset(
-                CraterSize,
-                CraterSize
-            )
+    Cutout.BackgroundTransparency = 0
+    Cutout.BorderSizePixel = 0
 
-        Crater.BackgroundColor3 =
-            Color3.fromRGB(
-                175,
-                175,
-                182
-            )
+    Cutout.ZIndex = 102
+    Cutout.Parent = Holder
 
-        Crater.BackgroundTransparency =
-            Transparency or 0.82
+    local CutoutCorner =
+        Instance.new("UICorner")
 
-        Crater.BorderSizePixel = 0
+    CutoutCorner.CornerRadius =
+        UDim.new(1, 0)
 
-        Crater.ZIndex = 102
-        Crater.Parent = Moon
-
-        local Corner =
-            Instance.new("UICorner")
-
-        Corner.CornerRadius =
-            UDim.new(
-                1,
-                0
-            )
-
-        Corner.Parent = Crater
-    end
+    CutoutCorner.Parent = Cutout
 
     ---------------------------------------------------------
-    -- VERY SUBTLE CRATERS
+    -- SUBTLE MOON DETAIL
     ---------------------------------------------------------
 
-    CreateCrater(
-        0.67,
-        0.30,
-        0.16,
-        0.82
-    )
+    local Detail = Instance.new("Frame")
 
-    CreateCrater(
-        0.31,
-        0.63,
-        0.13,
-        0.84
-    )
+    Detail.Name = "MoonDetail"
 
-    CreateCrater(
-        0.70,
-        0.70,
-        0.10,
-        0.85
-    )
+    Detail.AnchorPoint =
+        Vector2.new(0.5, 0.5)
 
-    CreateCrater(
-        0.48,
-        0.78,
-        0.07,
-        0.87
-    )
+    Detail.Position =
+        UDim2.fromScale(
+            0.34,
+            0.35
+        )
+
+    Detail.Size =
+        UDim2.fromOffset(
+            Size * 0.13,
+            Size * 0.13
+        )
+
+    Detail.BackgroundColor3 =
+        Color3.fromRGB(
+            190,
+            190,
+            196
+        )
+
+    Detail.BackgroundTransparency = 0.72
+    Detail.BorderSizePixel = 0
+
+    Detail.ZIndex = 102
+    Detail.Parent = Moon
+
+    local DetailCorner =
+        Instance.new("UICorner")
+
+    DetailCorner.CornerRadius =
+        UDim.new(1, 0)
+
+    DetailCorner.Parent = Detail
 
     ---------------------------------------------------------
+    -- SECOND SUBTLE DETAIL
+    ---------------------------------------------------------
+
+    local Detail2 = Instance.new("Frame")
+
+    Detail2.Name = "MoonDetail2"
+
+    Detail2.AnchorPoint =
+        Vector2.new(0.5, 0.5)
+
+    Detail2.Position =
+        UDim2.fromScale(
+            0.43,
+            0.67
+        )
+
+    Detail2.Size =
+        UDim2.fromOffset(
+            Size * 0.09,
+            Size * 0.09
+        )
+
+    Detail2.BackgroundColor3 =
+        Color3.fromRGB(
+            190,
+            190,
+            196
+        )
+
+    Detail2.BackgroundTransparency = 0.78
+    Detail2.BorderSizePixel = 0
+
+    Detail2.ZIndex = 102
+    Detail2.Parent = Moon
+
+    local Detail2Corner =
+        Instance.new("UICorner")
+
+    Detail2Corner.CornerRadius =
+        UDim.new(1, 0)
+
+    Detail2Corner.Parent = Detail2
+
+    ---------------------------------------------------------
+    -- STATIC
     -- NO GLOW
     -- NO OUTLINE
     -- NO ANIMATION
