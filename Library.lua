@@ -1,5 +1,5 @@
---// KamUI Modern Obsidian
---// API preserved - visual layer redesigned
+--// MoonHub Modern Obsidian
+--// Obsidian API preserved - visual layer redesigned
 
 local HttpGet = game.HttpGet
 local LoadString = loadstring
