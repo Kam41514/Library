@@ -1,20 +1,23 @@
 --// MoonHub Custom Icon
---// Minimal Soft White Crescent Moon
---// No Glow / No Outline / No Animation
+--// Minimal Soft White Crescent
+--// Centered / Static / No Glow / No Outline
 
 local MoonIcon = {}
 
-function MoonIcon.Create(Parent, Size, Position)
+function MoonIcon.Create(Parent, Size)
 
     if not Parent then
         return nil
     end
 
-    -- Icon boyutu
+    ---------------------------------------------------------
+    -- SETTINGS
+    ---------------------------------------------------------
+
     Size = Size or 25
 
-    -- Yazıyla aynı hizada, solda hafif boşluk
-    Position = Position or UDim2.fromOffset(8, 1)
+    -- Soldan boşluk
+    local LeftPadding = 7
 
     ---------------------------------------------------------
     -- HOLDER
@@ -32,13 +35,23 @@ function MoonIcon.Create(Parent, Size, Position)
         Size
     )
 
-    Holder.Position = Position
+    -- Parent'ın dikey merkezine oturur
+    Holder.AnchorPoint =
+        Vector2.new(0, 0.5)
+
+    Holder.Position =
+        UDim2.new(
+            0,
+            LeftPadding,
+            0.5,
+            0
+        )
 
     Holder.ZIndex = 100
     Holder.Parent = Parent
 
     ---------------------------------------------------------
-    -- WHITE MOON
+    -- MOON
     ---------------------------------------------------------
 
     local Moon = Instance.new("Frame")
@@ -83,8 +96,7 @@ function MoonIcon.Create(Parent, Size, Position)
     MoonCorner.Parent = Moon
 
     ---------------------------------------------------------
-    -- DARK CUTOUT
-    -- Sağ tarafı keserek hilal oluşturur
+    -- CRESCENT CUTOUT
     ---------------------------------------------------------
 
     local Cutout = Instance.new("Frame")
@@ -96,17 +108,17 @@ function MoonIcon.Create(Parent, Size, Position)
 
     Cutout.Position =
         UDim2.fromScale(
-            0.68,
-            0.38
+            0.69,
+            0.36
         )
 
     Cutout.Size =
         UDim2.fromOffset(
-            Size * 0.86,
-            Size * 0.86
+            Size * 0.84,
+            Size * 0.84
         )
 
-    -- Obsidian arka planıyla aynı koyu renk
+    -- Obsidian'ın koyu arka planı
     Cutout.BackgroundColor3 =
         Color3.fromRGB(
             5,
@@ -129,7 +141,7 @@ function MoonIcon.Create(Parent, Size, Position)
     CutoutCorner.Parent = Cutout
 
     ---------------------------------------------------------
-    -- SUBTLE MOON DETAIL
+    -- SUBTLE CRATER 1
     ---------------------------------------------------------
 
     local Detail = Instance.new("Frame")
@@ -142,26 +154,26 @@ function MoonIcon.Create(Parent, Size, Position)
     Detail.Position =
         UDim2.fromScale(
             0.34,
-            0.35
+            0.34
         )
 
     Detail.Size =
         UDim2.fromOffset(
-            Size * 0.13,
-            Size * 0.13
+            Size * 0.12,
+            Size * 0.12
         )
 
     Detail.BackgroundColor3 =
         Color3.fromRGB(
-            190,
-            190,
-            196
+            185,
+            185,
+            192
         )
 
-    Detail.BackgroundTransparency = 0.72
+    Detail.BackgroundTransparency = 0.76
     Detail.BorderSizePixel = 0
 
-    Detail.ZIndex = 102
+    Detail.ZIndex = 103
     Detail.Parent = Moon
 
     local DetailCorner =
@@ -173,7 +185,7 @@ function MoonIcon.Create(Parent, Size, Position)
     DetailCorner.Parent = Detail
 
     ---------------------------------------------------------
-    -- SECOND SUBTLE DETAIL
+    -- SUBTLE CRATER 2
     ---------------------------------------------------------
 
     local Detail2 = Instance.new("Frame")
@@ -185,27 +197,27 @@ function MoonIcon.Create(Parent, Size, Position)
 
     Detail2.Position =
         UDim2.fromScale(
-            0.43,
-            0.67
+            0.42,
+            0.66
         )
 
     Detail2.Size =
         UDim2.fromOffset(
-            Size * 0.09,
-            Size * 0.09
+            Size * 0.085,
+            Size * 0.085
         )
 
     Detail2.BackgroundColor3 =
         Color3.fromRGB(
-            190,
-            190,
-            196
+            185,
+            185,
+            192
         )
 
-    Detail2.BackgroundTransparency = 0.78
+    Detail2.BackgroundTransparency = 0.80
     Detail2.BorderSizePixel = 0
 
-    Detail2.ZIndex = 102
+    Detail2.ZIndex = 103
     Detail2.Parent = Moon
 
     local Detail2Corner =
