@@ -1,6 +1,6 @@
 --// MoonHub Custom Icon
---// Soft White Moon + Subtle Purple Glow
---// Static / No Animation / No Asset
+--// Minimal Soft White Moon
+--// Static / No Glow / No Outline / No Animation
 
 local MoonIcon = {}
 
@@ -10,10 +10,10 @@ function MoonIcon.Create(Parent, Size, Position)
         return nil
     end
 
-    Size = Size or 22
+    Size = Size or 21
 
     -- Biraz daha yukarı
-    Position = Position or UDim2.fromOffset(8, 3)
+    Position = Position or UDim2.fromOffset(8, 0)
 
     ---------------------------------------------------------
     -- HOLDER
@@ -22,13 +22,15 @@ function MoonIcon.Create(Parent, Size, Position)
     local Holder = Instance.new("Frame")
 
     Holder.Name = "MoonHubMoon"
+
     Holder.BackgroundTransparency = 1
     Holder.BorderSizePixel = 0
 
-    Holder.Size = UDim2.fromOffset(
-        Size + 18,
-        Size + 18
-    )
+    Holder.Size =
+        UDim2.fromOffset(
+            Size,
+            Size
+        )
 
     Holder.Position = Position
 
@@ -36,96 +38,10 @@ function MoonIcon.Create(Parent, Size, Position)
     Holder.Parent = Parent
 
     ---------------------------------------------------------
-    -- SOFT PURPLE OUTER GLOW
-    ---------------------------------------------------------
-
-    local Glow = Instance.new("Frame")
-
-    Glow.Name = "PurpleGlow"
-
-    Glow.AnchorPoint =
-        Vector2.new(0.5, 0.5)
-
-    Glow.Position =
-        UDim2.fromScale(0.5, 0.5)
-
-    Glow.Size =
-        UDim2.fromOffset(
-            Size + 13,
-            Size + 13
-        )
-
-    Glow.BackgroundColor3 =
-        Color3.fromRGB(
-            135,
-            85,
-            220
-        )
-
-    Glow.BackgroundTransparency = 0.90
-
-    Glow.BorderSizePixel = 0
-
-    Glow.ZIndex = 99
-    Glow.Parent = Holder
-
-    local GlowCorner =
-        Instance.new("UICorner")
-
-    GlowCorner.CornerRadius =
-        UDim.new(1, 0)
-
-    GlowCorner.Parent = Glow
-
-    ---------------------------------------------------------
-    -- VERY SOFT INNER GLOW
-    ---------------------------------------------------------
-
-    local SoftGlow =
-        Instance.new("Frame")
-
-    SoftGlow.Name = "SoftGlow"
-
-    SoftGlow.AnchorPoint =
-        Vector2.new(0.5, 0.5)
-
-    SoftGlow.Position =
-        UDim2.fromScale(0.5, 0.5)
-
-    SoftGlow.Size =
-        UDim2.fromOffset(
-            Size + 5,
-            Size + 5
-        )
-
-    SoftGlow.BackgroundColor3 =
-        Color3.fromRGB(
-            165,
-            120,
-            235
-        )
-
-    SoftGlow.BackgroundTransparency = 0.92
-
-    SoftGlow.BorderSizePixel = 0
-
-    SoftGlow.ZIndex = 100
-    SoftGlow.Parent = Holder
-
-    local SoftCorner =
-        Instance.new("UICorner")
-
-    SoftCorner.CornerRadius =
-        UDim.new(1, 0)
-
-    SoftCorner.Parent = SoftGlow
-
-    ---------------------------------------------------------
     -- SOFT WHITE MOON
     ---------------------------------------------------------
 
-    local Moon =
-        Instance.new("Frame")
+    local Moon = Instance.new("Frame")
 
     Moon.Name = "Moon"
 
@@ -133,7 +49,10 @@ function MoonIcon.Create(Parent, Size, Position)
         Vector2.new(0.5, 0.5)
 
     Moon.Position =
-        UDim2.fromScale(0.5, 0.5)
+        UDim2.fromScale(
+            0.5,
+            0.5
+        )
 
     Moon.Size =
         UDim2.fromOffset(
@@ -141,12 +60,12 @@ function MoonIcon.Create(Parent, Size, Position)
             Size
         )
 
-    -- Soft white, not pure bright white
+    -- Koyu arka planda gözü yormayan soft beyaz
     Moon.BackgroundColor3 =
         Color3.fromRGB(
-            238,
-            238,
-            242
+            218,
+            218,
+            224
         )
 
     Moon.BackgroundTransparency = 0
@@ -156,40 +75,23 @@ function MoonIcon.Create(Parent, Size, Position)
     Moon.ZIndex = 101
     Moon.Parent = Holder
 
+    ---------------------------------------------------------
+    -- ROUND MOON
+    ---------------------------------------------------------
+
     local MoonCorner =
         Instance.new("UICorner")
 
     MoonCorner.CornerRadius =
-        UDim.new(1, 0)
+        UDim.new(
+            1,
+            0
+        )
 
     MoonCorner.Parent = Moon
 
     ---------------------------------------------------------
-    -- DARK / SUBTLE PURPLE OUTLINE
-    ---------------------------------------------------------
-
-    local MoonStroke =
-        Instance.new("UIStroke")
-
-    MoonStroke.Name =
-        "MoonOutline"
-
-    -- Dark purple so it doesn't stand out too much
-    MoonStroke.Color =
-        Color3.fromRGB(
-            75,
-            55,
-            105
-        )
-
-    MoonStroke.Thickness = 1
-
-    MoonStroke.Transparency = 0.58
-
-    MoonStroke.Parent = Moon
-
-    ---------------------------------------------------------
-    -- CRATER FUNCTION
+    -- SUBTLE CRATERS
     ---------------------------------------------------------
 
     local function CreateCrater(
@@ -202,10 +104,14 @@ function MoonIcon.Create(Parent, Size, Position)
         local Crater =
             Instance.new("Frame")
 
-        Crater.Name = "Crater"
+        Crater.Name =
+            "Crater"
 
         Crater.AnchorPoint =
-            Vector2.new(0.5, 0.5)
+            Vector2.new(
+                0.5,
+                0.5
+            )
 
         Crater.Position =
             UDim2.fromScale(
@@ -227,13 +133,13 @@ function MoonIcon.Create(Parent, Size, Position)
 
         Crater.BackgroundColor3 =
             Color3.fromRGB(
-                190,
-                190,
-                198
+                175,
+                175,
+                182
             )
 
         Crater.BackgroundTransparency =
-            Transparency or 0.72
+            Transparency or 0.82
 
         Crater.BorderSizePixel = 0
 
@@ -244,98 +150,50 @@ function MoonIcon.Create(Parent, Size, Position)
             Instance.new("UICorner")
 
         Corner.CornerRadius =
-            UDim.new(1, 0)
+            UDim.new(
+                1,
+                0
+            )
 
         Corner.Parent = Crater
     end
 
     ---------------------------------------------------------
-    -- SUBTLE CRATERS
+    -- VERY SUBTLE CRATERS
     ---------------------------------------------------------
 
     CreateCrater(
         0.67,
         0.30,
         0.16,
-        0.72
+        0.82
     )
 
     CreateCrater(
         0.31,
         0.63,
         0.13,
-        0.75
+        0.84
     )
 
     CreateCrater(
         0.70,
         0.70,
         0.10,
-        0.77
+        0.85
     )
 
     CreateCrater(
         0.48,
         0.78,
         0.07,
-        0.79
+        0.87
     )
 
     ---------------------------------------------------------
-    -- SOFT HIGHLIGHT
-    ---------------------------------------------------------
-
-    local Highlight =
-        Instance.new("Frame")
-
-    Highlight.Name =
-        "Highlight"
-
-    Highlight.AnchorPoint =
-        Vector2.new(0.5, 0.5)
-
-    Highlight.Position =
-        UDim2.fromScale(
-            0.34,
-            0.28
-        )
-
-    Highlight.Size =
-        UDim2.fromOffset(
-            math.max(
-                2,
-                Size * 0.12
-            ),
-            math.max(
-                2,
-                Size * 0.12
-            )
-        )
-
-    Highlight.BackgroundColor3 =
-        Color3.fromRGB(
-            248,
-            248,
-            250
-        )
-
-    Highlight.BackgroundTransparency = 0.15
-
-    Highlight.BorderSizePixel = 0
-
-    Highlight.ZIndex = 103
-    Highlight.Parent = Moon
-
-    local HighlightCorner =
-        Instance.new("UICorner")
-
-    HighlightCorner.CornerRadius =
-        UDim.new(1, 0)
-
-    HighlightCorner.Parent = Highlight
-
-    ---------------------------------------------------------
-    -- RETURN
+    -- NO GLOW
+    -- NO OUTLINE
+    -- NO ANIMATION
     ---------------------------------------------------------
 
     return Holder
