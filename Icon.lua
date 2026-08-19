@@ -1,5 +1,5 @@
 --// MoonHub Custom Icon
---// White Moon + Soft Purple Glow
+--// Soft White Moon + Subtle Purple Glow
 --// Static / No Animation / No Asset
 
 local MoonIcon = {}
@@ -11,7 +11,9 @@ function MoonIcon.Create(Parent, Size, Position)
     end
 
     Size = Size or 22
-    Position = Position or UDim2.fromOffset(8, 7)
+
+    -- Biraz daha yukarı
+    Position = Position or UDim2.fromOffset(8, 3)
 
     ---------------------------------------------------------
     -- HOLDER
@@ -34,7 +36,7 @@ function MoonIcon.Create(Parent, Size, Position)
     Holder.Parent = Parent
 
     ---------------------------------------------------------
-    -- OUTER PURPLE GLOW
+    -- SOFT PURPLE OUTER GLOW
     ---------------------------------------------------------
 
     local Glow = Instance.new("Frame")
@@ -49,18 +51,18 @@ function MoonIcon.Create(Parent, Size, Position)
 
     Glow.Size =
         UDim2.fromOffset(
-            Size + 14,
-            Size + 14
+            Size + 13,
+            Size + 13
         )
 
     Glow.BackgroundColor3 =
         Color3.fromRGB(
-            150,
-            80,
-            255
+            135,
+            85,
+            220
         )
 
-    Glow.BackgroundTransparency = 0.82
+    Glow.BackgroundTransparency = 0.90
 
     Glow.BorderSizePixel = 0
 
@@ -76,7 +78,7 @@ function MoonIcon.Create(Parent, Size, Position)
     GlowCorner.Parent = Glow
 
     ---------------------------------------------------------
-    -- INNER SOFT PURPLE GLOW
+    -- VERY SOFT INNER GLOW
     ---------------------------------------------------------
 
     local SoftGlow =
@@ -92,18 +94,18 @@ function MoonIcon.Create(Parent, Size, Position)
 
     SoftGlow.Size =
         UDim2.fromOffset(
-            Size + 6,
-            Size + 6
+            Size + 5,
+            Size + 5
         )
 
     SoftGlow.BackgroundColor3 =
         Color3.fromRGB(
-            180,
+            165,
             120,
-            255
+            235
         )
 
-    SoftGlow.BackgroundTransparency = 0.86
+    SoftGlow.BackgroundTransparency = 0.92
 
     SoftGlow.BorderSizePixel = 0
 
@@ -119,7 +121,7 @@ function MoonIcon.Create(Parent, Size, Position)
     SoftCorner.Parent = SoftGlow
 
     ---------------------------------------------------------
-    -- WHITE MOON
+    -- SOFT WHITE MOON
     ---------------------------------------------------------
 
     local Moon =
@@ -139,12 +141,12 @@ function MoonIcon.Create(Parent, Size, Position)
             Size
         )
 
-    -- PURE WHITE
+    -- Soft white, not pure bright white
     Moon.BackgroundColor3 =
         Color3.fromRGB(
-            255,
-            255,
-            255
+            238,
+            238,
+            242
         )
 
     Moon.BackgroundTransparency = 0
@@ -163,7 +165,7 @@ function MoonIcon.Create(Parent, Size, Position)
     MoonCorner.Parent = Moon
 
     ---------------------------------------------------------
-    -- LIGHT PURPLE OUTLINE
+    -- DARK / SUBTLE PURPLE OUTLINE
     ---------------------------------------------------------
 
     local MoonStroke =
@@ -172,21 +174,22 @@ function MoonIcon.Create(Parent, Size, Position)
     MoonStroke.Name =
         "MoonOutline"
 
+    -- Dark purple so it doesn't stand out too much
     MoonStroke.Color =
         Color3.fromRGB(
-            200,
-            170,
-            255
+            75,
+            55,
+            105
         )
 
     MoonStroke.Thickness = 1
 
-    MoonStroke.Transparency = 0.15
+    MoonStroke.Transparency = 0.58
 
     MoonStroke.Parent = Moon
 
     ---------------------------------------------------------
-    -- CRATER
+    -- CRATER FUNCTION
     ---------------------------------------------------------
 
     local function CreateCrater(
@@ -222,16 +225,15 @@ function MoonIcon.Create(Parent, Size, Position)
                 CraterSize
             )
 
-        -- LIGHT GRAY
         Crater.BackgroundColor3 =
             Color3.fromRGB(
-                205,
-                205,
-                215
+                190,
+                190,
+                198
             )
 
         Crater.BackgroundTransparency =
-            Transparency or 0.65
+            Transparency or 0.72
 
         Crater.BorderSizePixel = 0
 
@@ -248,39 +250,39 @@ function MoonIcon.Create(Parent, Size, Position)
     end
 
     ---------------------------------------------------------
-    -- MOON CRATERS
+    -- SUBTLE CRATERS
     ---------------------------------------------------------
 
     CreateCrater(
         0.67,
         0.30,
         0.16,
-        0.62
+        0.72
     )
 
     CreateCrater(
         0.31,
         0.63,
         0.13,
-        0.66
+        0.75
     )
 
     CreateCrater(
         0.70,
         0.70,
         0.10,
-        0.68
+        0.77
     )
 
     CreateCrater(
         0.48,
         0.78,
         0.07,
-        0.70
+        0.79
     )
 
     ---------------------------------------------------------
-    -- WHITE HIGHLIGHT
+    -- SOFT HIGHLIGHT
     ---------------------------------------------------------
 
     local Highlight =
@@ -302,22 +304,22 @@ function MoonIcon.Create(Parent, Size, Position)
         UDim2.fromOffset(
             math.max(
                 2,
-                Size * 0.13
+                Size * 0.12
             ),
             math.max(
                 2,
-                Size * 0.13
+                Size * 0.12
             )
         )
 
     Highlight.BackgroundColor3 =
         Color3.fromRGB(
-            255,
-            255,
-            255
+            248,
+            248,
+            250
         )
 
-    Highlight.BackgroundTransparency = 0
+    Highlight.BackgroundTransparency = 0.15
 
     Highlight.BorderSizePixel = 0
 
