@@ -1,6 +1,6 @@
 --// MoonHub Custom Icon
---// Static White Moon + Purple Glow
---// No external asset required
+--// White Moon + Soft Purple Glow
+--// Static / No Animation / No Asset
 
 local MoonIcon = {}
 
@@ -24,8 +24,8 @@ function MoonIcon.Create(Parent, Size, Position)
     Holder.BorderSizePixel = 0
 
     Holder.Size = UDim2.fromOffset(
-        Size + 16,
-        Size + 16
+        Size + 18,
+        Size + 18
     )
 
     Holder.Position = Position
@@ -34,30 +34,41 @@ function MoonIcon.Create(Parent, Size, Position)
     Holder.Parent = Parent
 
     ---------------------------------------------------------
-    -- PURPLE GLOW
+    -- OUTER PURPLE GLOW
     ---------------------------------------------------------
 
     local Glow = Instance.new("Frame")
 
     Glow.Name = "PurpleGlow"
-    Glow.AnchorPoint = Vector2.new(0.5, 0.5)
-    Glow.Position = UDim2.fromScale(0.5, 0.5)
 
-    Glow.Size = UDim2.fromOffset(
-        Size + 12,
-        Size + 12
-    )
+    Glow.AnchorPoint =
+        Vector2.new(0.5, 0.5)
+
+    Glow.Position =
+        UDim2.fromScale(0.5, 0.5)
+
+    Glow.Size =
+        UDim2.fromOffset(
+            Size + 14,
+            Size + 14
+        )
 
     Glow.BackgroundColor3 =
-        Color3.fromRGB(155, 95, 255)
+        Color3.fromRGB(
+            150,
+            80,
+            255
+        )
 
-    Glow.BackgroundTransparency = 0.78
+    Glow.BackgroundTransparency = 0.82
 
     Glow.BorderSizePixel = 0
+
     Glow.ZIndex = 99
     Glow.Parent = Holder
 
-    local GlowCorner = Instance.new("UICorner")
+    local GlowCorner =
+        Instance.new("UICorner")
 
     GlowCorner.CornerRadius =
         UDim.new(1, 0)
@@ -65,30 +76,42 @@ function MoonIcon.Create(Parent, Size, Position)
     GlowCorner.Parent = Glow
 
     ---------------------------------------------------------
-    -- SOFT SECOND GLOW
+    -- INNER SOFT PURPLE GLOW
     ---------------------------------------------------------
 
-    local SoftGlow = Instance.new("Frame")
+    local SoftGlow =
+        Instance.new("Frame")
 
     SoftGlow.Name = "SoftGlow"
-    SoftGlow.AnchorPoint = Vector2.new(0.5, 0.5)
-    SoftGlow.Position = UDim2.fromScale(0.5, 0.5)
 
-    SoftGlow.Size = UDim2.fromOffset(
-        Size + 7,
-        Size + 7
-    )
+    SoftGlow.AnchorPoint =
+        Vector2.new(0.5, 0.5)
+
+    SoftGlow.Position =
+        UDim2.fromScale(0.5, 0.5)
+
+    SoftGlow.Size =
+        UDim2.fromOffset(
+            Size + 6,
+            Size + 6
+        )
 
     SoftGlow.BackgroundColor3 =
-        Color3.fromRGB(190, 145, 255)
+        Color3.fromRGB(
+            180,
+            120,
+            255
+        )
 
-    SoftGlow.BackgroundTransparency = 0.82
+    SoftGlow.BackgroundTransparency = 0.86
 
     SoftGlow.BorderSizePixel = 0
+
     SoftGlow.ZIndex = 100
     SoftGlow.Parent = Holder
 
-    local SoftCorner = Instance.new("UICorner")
+    local SoftCorner =
+        Instance.new("UICorner")
 
     SoftCorner.CornerRadius =
         UDim.new(1, 0)
@@ -99,27 +122,40 @@ function MoonIcon.Create(Parent, Size, Position)
     -- WHITE MOON
     ---------------------------------------------------------
 
-    local Moon = Instance.new("Frame")
+    local Moon =
+        Instance.new("Frame")
 
     Moon.Name = "Moon"
-    Moon.AnchorPoint = Vector2.new(0.5, 0.5)
-    Moon.Position = UDim2.fromScale(0.5, 0.5)
 
-    Moon.Size = UDim2.fromOffset(
-        Size,
-        Size
-    )
+    Moon.AnchorPoint =
+        Vector2.new(0.5, 0.5)
 
+    Moon.Position =
+        UDim2.fromScale(0.5, 0.5)
+
+    Moon.Size =
+        UDim2.fromOffset(
+            Size,
+            Size
+        )
+
+    -- PURE WHITE
     Moon.BackgroundColor3 =
-        Color3.fromRGB(250, 248, 255)
+        Color3.fromRGB(
+            255,
+            255,
+            255
+        )
 
     Moon.BackgroundTransparency = 0
 
     Moon.BorderSizePixel = 0
+
     Moon.ZIndex = 101
     Moon.Parent = Holder
 
-    local MoonCorner = Instance.new("UICorner")
+    local MoonCorner =
+        Instance.new("UICorner")
 
     MoonCorner.CornerRadius =
         UDim.new(1, 0)
@@ -127,28 +163,41 @@ function MoonIcon.Create(Parent, Size, Position)
     MoonCorner.Parent = Moon
 
     ---------------------------------------------------------
-    -- MOON OUTLINE
+    -- LIGHT PURPLE OUTLINE
     ---------------------------------------------------------
 
-    local MoonStroke = Instance.new("UIStroke")
+    local MoonStroke =
+        Instance.new("UIStroke")
 
-    MoonStroke.Name = "MoonOutline"
+    MoonStroke.Name =
+        "MoonOutline"
 
     MoonStroke.Color =
-        Color3.fromRGB(220, 200, 255)
+        Color3.fromRGB(
+            200,
+            170,
+            255
+        )
 
     MoonStroke.Thickness = 1
+
     MoonStroke.Transparency = 0.15
 
     MoonStroke.Parent = Moon
 
     ---------------------------------------------------------
-    -- CRATER FUNCTION
+    -- CRATER
     ---------------------------------------------------------
 
-    local function CreateCrater(X, Y, Scale, Transparency)
+    local function CreateCrater(
+        X,
+        Y,
+        Scale,
+        Transparency
+    )
 
-        local Crater = Instance.new("Frame")
+        local Crater =
+            Instance.new("Frame")
 
         Crater.Name = "Crater"
 
@@ -156,7 +205,10 @@ function MoonIcon.Create(Parent, Size, Position)
             Vector2.new(0.5, 0.5)
 
         Crater.Position =
-            UDim2.fromScale(X, Y)
+            UDim2.fromScale(
+                X,
+                Y
+            )
 
         local CraterSize =
             math.max(
@@ -170,18 +222,24 @@ function MoonIcon.Create(Parent, Size, Position)
                 CraterSize
             )
 
+        -- LIGHT GRAY
         Crater.BackgroundColor3 =
-            Color3.fromRGB(190, 185, 205)
+            Color3.fromRGB(
+                205,
+                205,
+                215
+            )
 
         Crater.BackgroundTransparency =
-            Transparency or 0.55
+            Transparency or 0.65
 
         Crater.BorderSizePixel = 0
 
         Crater.ZIndex = 102
         Crater.Parent = Moon
 
-        local Corner = Instance.new("UICorner")
+        local Corner =
+            Instance.new("UICorner")
 
         Corner.CornerRadius =
             UDim.new(1, 0)
@@ -190,44 +248,46 @@ function MoonIcon.Create(Parent, Size, Position)
     end
 
     ---------------------------------------------------------
-    -- CRATERS
+    -- MOON CRATERS
     ---------------------------------------------------------
 
     CreateCrater(
         0.67,
         0.30,
         0.16,
-        0.58
+        0.62
     )
 
     CreateCrater(
         0.31,
         0.63,
         0.13,
-        0.62
+        0.66
     )
 
     CreateCrater(
         0.70,
         0.70,
         0.10,
-        0.65
+        0.68
     )
 
     CreateCrater(
         0.48,
         0.78,
         0.07,
-        0.68
+        0.70
     )
 
     ---------------------------------------------------------
-    -- SMALL WHITE HIGHLIGHT
+    -- WHITE HIGHLIGHT
     ---------------------------------------------------------
 
-    local Highlight = Instance.new("Frame")
+    local Highlight =
+        Instance.new("Frame")
 
-    Highlight.Name = "Highlight"
+    Highlight.Name =
+        "Highlight"
 
     Highlight.AnchorPoint =
         Vector2.new(0.5, 0.5)
@@ -240,21 +300,32 @@ function MoonIcon.Create(Parent, Size, Position)
 
     Highlight.Size =
         UDim2.fromOffset(
-            math.max(2, Size * 0.13),
-            math.max(2, Size * 0.13)
+            math.max(
+                2,
+                Size * 0.13
+            ),
+            math.max(
+                2,
+                Size * 0.13
+            )
         )
 
     Highlight.BackgroundColor3 =
-        Color3.fromRGB(255, 255, 255)
+        Color3.fromRGB(
+            255,
+            255,
+            255
+        )
 
-    Highlight.BackgroundTransparency = 0.05
+    Highlight.BackgroundTransparency = 0
 
     Highlight.BorderSizePixel = 0
 
     Highlight.ZIndex = 103
     Highlight.Parent = Moon
 
-    local HighlightCorner = Instance.new("UICorner")
+    local HighlightCorner =
+        Instance.new("UICorner")
 
     HighlightCorner.CornerRadius =
         UDim.new(1, 0)
