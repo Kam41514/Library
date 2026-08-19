@@ -1,108 +1,74 @@
---// MoonHub Custom Icon
---// No Roblox image asset required
+--// MoonHub Custom Moon Icon
 
 local MoonIcon = {}
-
-MoonIcon.Name = "Moon"
-
-MoonIcon.Color = Color3.fromRGB(190, 145, 255)
-MoonIcon.GlowColor = Color3.fromRGB(145, 80, 255)
 
 function MoonIcon.Create(Parent, Size, Position)
 
     if not Parent then
-        return nil
+        return
     end
 
-    Size = Size or 24
-    Position = Position or UDim2.fromOffset(8, 8)
+    Size = Size or 22
+    Position = Position or UDim2.fromOffset(8, 7)
 
     local Holder = Instance.new("Frame")
-    Holder.Name = "MoonHub_CustomMoon"
+    Holder.Name = "MoonHubMoon"
     Holder.BackgroundTransparency = 1
     Holder.BorderSizePixel = 0
-    Holder.Size = UDim2.fromOffset(Size + 16, Size + 16)
+    Holder.Size = UDim2.fromOffset(Size + 14, Size + 14)
     Holder.Position = Position
-    Holder.ZIndex = 50
+    Holder.ZIndex = 100
     Holder.Parent = Parent
 
-    ---------------------------------------------------------
-    -- PURPLE GLOW
-    ---------------------------------------------------------
-
+    -- MOR GLOW
     local Glow = Instance.new("Frame")
     Glow.Name = "Glow"
     Glow.AnchorPoint = Vector2.new(0.5, 0.5)
     Glow.Position = UDim2.fromScale(0.5, 0.5)
-    Glow.Size = UDim2.fromOffset(Size + 12, Size + 12)
-    Glow.BackgroundColor3 = MoonIcon.GlowColor
+    Glow.Size = UDim2.fromOffset(Size + 10, Size + 10)
+    Glow.BackgroundColor3 = Color3.fromRGB(150, 80, 255)
     Glow.BackgroundTransparency = 0.72
     Glow.BorderSizePixel = 0
-    Glow.ZIndex = 49
+    Glow.ZIndex = 100
     Glow.Parent = Holder
 
     local GlowCorner = Instance.new("UICorner")
     GlowCorner.CornerRadius = UDim.new(1, 0)
     GlowCorner.Parent = Glow
 
-    ---------------------------------------------------------
-    -- MOON
-    ---------------------------------------------------------
-
+    -- AY
     local Moon = Instance.new("Frame")
     Moon.Name = "Moon"
     Moon.AnchorPoint = Vector2.new(0.5, 0.5)
     Moon.Position = UDim2.fromScale(0.5, 0.5)
     Moon.Size = UDim2.fromOffset(Size, Size)
-    Moon.BackgroundColor3 = MoonIcon.Color
+    Moon.BackgroundColor3 = Color3.fromRGB(195, 155, 255)
     Moon.BorderSizePixel = 0
-    Moon.ZIndex = 51
+    Moon.ZIndex = 101
     Moon.Parent = Holder
 
     local MoonCorner = Instance.new("UICorner")
     MoonCorner.CornerRadius = UDim.new(1, 0)
     MoonCorner.Parent = Moon
 
-    ---------------------------------------------------------
-    -- SOFT HIGHLIGHT
-    ---------------------------------------------------------
+    local MoonStroke = Instance.new("UIStroke")
+    MoonStroke.Color = Color3.fromRGB(235, 215, 255)
+    MoonStroke.Thickness = 1
+    MoonStroke.Transparency = 0.1
+    MoonStroke.Parent = Moon
 
-    local Highlight = Instance.new("Frame")
-    Highlight.Name = "Highlight"
-    Highlight.AnchorPoint = Vector2.new(0.5, 0.5)
-    Highlight.Position = UDim2.fromScale(0.38, 0.34)
-    Highlight.Size = UDim2.fromOffset(Size * 0.22, Size * 0.22)
-    Highlight.BackgroundColor3 = Color3.fromRGB(245, 235, 255)
-    Highlight.BackgroundTransparency = 0.15
-    Highlight.BorderSizePixel = 0
-    Highlight.ZIndex = 52
-    Highlight.Parent = Moon
-
-    local HighlightCorner = Instance.new("UICorner")
-    HighlightCorner.CornerRadius = UDim.new(1, 0)
-    HighlightCorner.Parent = Highlight
-
-    ---------------------------------------------------------
-    -- SMALL CRATERS
-    ---------------------------------------------------------
-
-    local function Crater(X, Y, S, Transparency)
+    -- KRATERLER
+    local function Crater(X, Y, S)
 
         local C = Instance.new("Frame")
-
         C.Name = "Crater"
         C.AnchorPoint = Vector2.new(0.5, 0.5)
         C.Position = UDim2.fromScale(X, Y)
         C.Size = UDim2.fromOffset(S, S)
-
-        C.BackgroundColor3 =
-            Color3.fromRGB(125, 88, 185)
-
-        C.BackgroundTransparency =
-            Transparency or 0.35
-
+        C.BackgroundColor3 = Color3.fromRGB(145, 105, 205)
+        C.BackgroundTransparency = 0.35
         C.BorderSizePixel = 0
-        C.ZIndex = 52
+        C.ZIndex = 102
         C.Parent = Moon
 
         local Corner = Instance.new("UICorner")
@@ -110,78 +76,77 @@ function MoonIcon.Create(Parent, Size, Position)
         Corner.Parent = C
     end
 
-    Crater(0.68, 0.30, Size * 0.16, 0.35)
-    Crater(0.30, 0.63, Size * 0.13, 0.4)
-    Crater(0.70, 0.70, Size * 0.10, 0.45)
+    Crater(0.68, 0.30, math.max(2, Size * 0.16))
+    Crater(0.30, 0.65, math.max(2, Size * 0.13))
+    Crater(0.70, 0.70, math.max(2, Size * 0.10))
 
-    ---------------------------------------------------------
-    -- OUTLINE
-    ---------------------------------------------------------
+    -- IŞIK NOKTASI
+    local Shine = Instance.new("Frame")
+    Shine.Name = "Shine"
+    Shine.AnchorPoint = Vector2.new(0.5, 0.5)
+    Shine.Position = UDim2.fromScale(0.35, 0.30)
+    Shine.Size = UDim2.fromOffset(
+        math.max(2, Size * 0.16),
+        math.max(2, Size * 0.16)
+    )
+    Shine.BackgroundColor3 = Color3.fromRGB(255, 245, 255)
+    Shine.BackgroundTransparency = 0.1
+    Shine.BorderSizePixel = 0
+    Shine.ZIndex = 103
+    Shine.Parent = Moon
 
-    local Stroke = Instance.new("UIStroke")
+    local ShineCorner = Instance.new("UICorner")
+    ShineCorner.CornerRadius = UDim.new(1, 0)
+    ShineCorner.Parent = Shine
 
-    Stroke.Name = "MoonStroke"
-    Stroke.Color = Color3.fromRGB(220, 190, 255)
-    Stroke.Thickness = 1
-    Stroke.Transparency = 0.15
-    Stroke.Parent = Moon
-
-    ---------------------------------------------------------
-    -- GLOW ANIMATION
-    ---------------------------------------------------------
-
+    -- GLOW ANİMASYONU
     task.spawn(function()
+
+        local TweenService = game:GetService("TweenService")
 
         while Holder.Parent do
 
-            local TweenService =
-                game:GetService("TweenService")
+            local A = TweenService:Create(
+                Glow,
+                TweenInfo.new(
+                    1.4,
+                    Enum.EasingStyle.Sine,
+                    Enum.EasingDirection.InOut
+                ),
+                {
+                    BackgroundTransparency = 0.84,
+                    Size = UDim2.fromOffset(
+                        Size + 15,
+                        Size + 15
+                    )
+                }
+            )
 
-            local Tween =
-                TweenService:Create(
-                    Glow,
-                    TweenInfo.new(
-                        1.5,
-                        Enum.EasingStyle.Sine,
-                        Enum.EasingDirection.InOut
-                    ),
-                    {
-                        BackgroundTransparency = 0.84,
-                        Size =
-                            UDim2.fromOffset(
-                                Size + 16,
-                                Size + 16
-                            )
-                    }
-                )
-
-            Tween:Play()
-            Tween.Completed:Wait()
+            A:Play()
+            A.Completed:Wait()
 
             if not Holder.Parent then
                 break
             end
 
-            local Tween2 =
-                TweenService:Create(
-                    Glow,
-                    TweenInfo.new(
-                        1.5,
-                        Enum.EasingStyle.Sine,
-                        Enum.EasingDirection.InOut
-                    ),
-                    {
-                        BackgroundTransparency = 0.70,
-                        Size =
-                            UDim2.fromOffset(
-                                Size + 12,
-                                Size + 12
-                            )
-                    }
-                )
+            local B = TweenService:Create(
+                Glow,
+                TweenInfo.new(
+                    1.4,
+                    Enum.EasingStyle.Sine,
+                    Enum.EasingDirection.InOut
+                ),
+                {
+                    BackgroundTransparency = 0.68,
+                    Size = UDim2.fromOffset(
+                        Size + 10,
+                        Size + 10
+                    )
+                }
+            )
 
-            Tween2:Play()
-            Tween2.Completed:Wait()
+            B:Play()
+            B.Completed:Wait()
         end
     end)
 
