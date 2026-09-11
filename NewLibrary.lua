@@ -5,23 +5,27 @@ local TweenService = game:GetService("TweenService")
 local Library = {}
 Library.__index = Library
 
-Library.Registry = {}
 Library.Options = {}
 Library.Toggles = {}
 Library.Flags = {}
+Library.Registry = {}
 
 local COLORS = {
 	Background = Color3.fromRGB(8, 8, 8),
-	Surface = Color3.fromRGB(10, 10, 10),
-	Surface2 = Color3.fromRGB(12, 12, 12),
+	Frame = Color3.fromRGB(9, 9, 9),
+	Surface = Color3.fromRGB(11, 11, 11),
+	Surface2 = Color3.fromRGB(13, 13, 13),
 	Stroke = Color3.fromRGB(18, 18, 18),
-	Stroke2 = Color3.fromRGB(28, 28, 28),
-	Text = Color3.fromRGB(235, 235, 235),
-	SubText = Color3.fromRGB(145, 145, 145),
+
+	Text = Color3.fromRGB(238, 238, 238),
+	SubText = Color3.fromRGB(158, 158, 158),
+	Disabled = Color3.fromRGB(85, 85, 85),
+
 	Accent = Color3.fromRGB(125, 85, 255),
-	AccentDark = Color3.fromRGB(80, 50, 180),
+	AccentDark = Color3.fromRGB(85, 55, 185),
+
 	White = Color3.fromRGB(255, 255, 255),
-	Red = Color3.fromRGB(220, 70, 70),
+	Red = Color3.fromRGB(225, 75, 75),
 }
 
 local function Create(className, properties, parent)
@@ -38,48 +42,28 @@ local function Create(className, properties, parent)
 	return object
 end
 
-local function Corner(parent, radius)
-	return Create("UICorner", {
-		CornerRadius = UDim.new(0, radius or 5)
-	}, parent)
-end
-
-local function Stroke(parent, color, thickness, transparency)
+local function AddStroke(object)
 	return Create("UIStroke", {
-		Color = color or COLORS.Stroke,
-		Thickness = thickness or 1,
-		Transparency = transparency or 0
-	}, parent)
+		Color = COLORS.Stroke,
+		Thickness = 1,
+		Transparency = 0,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	}, object)
 end
 
-local function Padding(parent, left, right, top, bottom)
+local function AddCorner(object, radius)
+	return Create("UICorner", {
+		CornerRadius = UDim.new(0, radius or 5),
+	}, object)
+end
+
+local function AddPadding(object, left, right, top, bottom)
 	return Create("UIPadding", {
 		PaddingLeft = UDim.new(0, left or 0),
 		PaddingRight = UDim.new(0, right or 0),
 		PaddingTop = UDim.new(0, top or 0),
-		PaddingBottom = UDim.new(0, bottom or 0)
-	}, parent)
-end
-
-local function GetPlayerGui()
-	local player = Players.LocalPlayer
-
-	if not player then
-		return nil
-	end
-
-	local gui = player:FindFirstChildOfClass("PlayerGui")
-
-	if not gui then
-		gui = player:WaitForChild("PlayerGui")
-	end
-
-	return gui
-end
-
-local function RoundNumber(value, decimals)
-	local power = 10 ^ (decimals or 0)
-	return math.floor(value * power + 0.5) / power
+		PaddingBottom = UDim.new(0, bottom or 0),
+	}, object)
 end
 
 local function SafeCallback(callback, ...)
@@ -92,89 +76,96 @@ local function SafeCallback(callback, ...)
 	end, ...)
 end
 
-local BaseGroupbox = {}
-BaseGroupbox.__index = BaseGroupbox
+local function GetPlayerGui()
+	local player = Players.LocalPlayer
 
-function BaseGroupbox:_Register(idx, object)
-	if idx then
-		Library.Options[idx] = object
-		Library.Registry[idx] = object
+	if not player then
+		return nil
+	end
+
+	return player:FindFirstChildOfClass("PlayerGui")
+		or player:WaitForChild("PlayerGui")
+end
+
+local function Round(value, decimals)
+	local multiplier = 10 ^ (decimals or 0)
+	return math.floor(value * multiplier + 0.5) / multiplier
+end
+
+local Groupbox = {}
+Groupbox.__index = Groupbox
+
+function Groupbox:_Register(index, object)
+	if index then
+		Library.Options[index] = object
+		Library.Registry[index] = object
 	end
 
 	table.insert(self.Elements, object)
+
 	return object
 end
 
-function BaseGroupbox:SetVisible(visible)
-	self.Visible = visible
-
-	if self.Holder then
-		self.Holder.Visible = visible
-	end
-
-	self:Resize()
-end
-
-function BaseGroupbox:Show()
-	self:SetVisible(true)
-end
-
-function BaseGroupbox:Hide()
-	self:SetVisible(false)
-end
-
-function BaseGroupbox:Resize()
-	if not self.Container then
+function Groupbox:Resize()
+	if not self.Container or not self.BoxHolder then
 		return
 	end
 
 	local layout = self.Container:FindFirstChildOfClass("UIListLayout")
 
-	if layout then
-		self.Container.Size = UDim2.new(1, 0, 0, layout.AbsoluteContentSize.Y)
+	if not layout then
+		return
 	end
 
-	if self.BoxHolder then
-		local height = 30
+	local height = layout.AbsoluteContentSize.Y + 45
 
-		if layout then
-			height = layout.AbsoluteContentSize.Y + 36
-		end
-
-		if self.DescriptionLabel and self.DescriptionLabel.Visible then
-			height += self.DescriptionLabel.AbsoluteSize.Y + 5
-		end
-
-		self.BoxHolder.Size = UDim2.new(1, 0, 0, math.max(height, 42))
+	if self.Collapsed then
+		height = 36
 	end
+
+	self.Container.Size = UDim2.new(1, 0, 0, layout.AbsoluteContentSize.Y)
+
+	self.BoxHolder.Size = UDim2.new(
+		1,
+		0,
+		0,
+		math.max(height, 44)
+	)
 end
 
-function BaseGroupbox:AddDivider(info)
-	local holder = Create("Frame", {
-		Name = "Divider",
-		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 9)
-	}, self.Container)
-
-	local line = Create("Frame", {
-		BackgroundColor3 = COLORS.Stroke,
-		BorderSizePixel = 0,
-		Position = UDim2.new(0, 0, 0.5, 0),
-		Size = UDim2.new(1, 0, 0, 1)
-	}, holder)
+function Groupbox:SetVisible(value)
+	self.Visible = value == true
+	self.BoxHolder.Visible = self.Visible
 
 	self:Resize()
-
-	return holder
 end
 
-function BaseGroupbox:AddLabel(info, doesWrap, idx)
+function Groupbox:Show()
+	self:SetVisible(true)
+end
+
+function Groupbox:Hide()
+	self:SetVisible(false)
+end
+
+function Groupbox:SetCollapsed(value)
+	self.Collapsed = value == true
+	self.Container.Visible = not self.Collapsed
+
+	self:Resize()
+end
+
+function Groupbox:ToggleCollapsed()
+	self:SetCollapsed(not self.Collapsed)
+end
+
+function Groupbox:AddLabel(info, doesWrap)
 	local data
 
 	if typeof(info) == "string" then
 		data = {
 			Text = info,
-			DoesWrap = doesWrap
+			DoesWrap = doesWrap,
 		}
 	else
 		data = info or {}
@@ -183,39 +174,30 @@ function BaseGroupbox:AddLabel(info, doesWrap, idx)
 	local holder = Create("Frame", {
 		Name = "Label",
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, data.Size or 20),
+		Size = UDim2.new(1, 0, 0, data.DoesWrap and 32 or 20),
 		AutomaticSize = data.DoesWrap and Enum.AutomaticSize.Y or Enum.AutomaticSize.None,
 	}, self.Container)
 
 	local label = Create("TextLabel", {
-		Name = "Label",
+		Name = "Text",
 		BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 1, 0),
-		Font = Enum.Font.Gotham,
+		Font = Enum.Font.GothamMedium,
 		Text = tostring(data.Text or ""),
 		TextColor3 = COLORS.SubText,
 		TextSize = 12,
 		TextWrapped = data.DoesWrap == true,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		TextYAlignment = Enum.TextYAlignment.Center
+		TextYAlignment = Enum.TextYAlignment.Center,
 	}, holder)
 
 	local object = {
-		Text = tostring(data.Text or ""),
-		DoesWrap = data.DoesWrap == true,
-		Visible = data.Visible ~= false,
 		Type = "Label",
+		Text = tostring(data.Text or ""),
 		Holder = holder,
 		TextLabel = label,
-		Container = holder,
-		Parent = self
+		Parent = self,
 	}
-
-	function object:SetVisible(value)
-		self.Visible = value
-		self.Holder.Visible = value
-		self.Parent:Resize()
-	end
 
 	function object:SetText(text)
 		self.Text = tostring(text)
@@ -223,25 +205,51 @@ function BaseGroupbox:AddLabel(info, doesWrap, idx)
 		self.Parent:Resize()
 	end
 
+	function object:SetVisible(value)
+		self.Holder.Visible = value == true
+		self.Parent:Resize()
+	end
+
 	function object:Destroy()
 		self.Holder:Destroy()
 	end
 
-	holder.Visible = object.Visible
-
-	self:_Register(idx, object)
+	self:_Register(nil, object)
 	self:Resize()
 
 	return object
 end
 
-function BaseGroupbox:AddButton(info, func, idx)
+function Groupbox:AddDivider()
+	local holder = Create("Frame", {
+		Name = "Divider",
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 8),
+	}, self.Container)
+
+	local line = Create("Frame", {
+		Name = "Line",
+		AnchorPoint = Vector2.new(0, 0.5),
+		BackgroundColor3 = COLORS.Stroke,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 0, 0.5, 0),
+		Size = UDim2.new(1, 0, 0, 1),
+	}, holder)
+
+	AddStroke(line)
+
+	self:Resize()
+
+	return holder
+end
+
+function Groupbox:AddButton(info, callback)
 	local data
 
 	if typeof(info) == "string" then
 		data = {
 			Text = info,
-			Func = func
+			Func = callback,
 		}
 	else
 		data = info or {}
@@ -250,7 +258,7 @@ function BaseGroupbox:AddButton(info, func, idx)
 	local holder = Create("Frame", {
 		Name = "Button",
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 30)
+		Size = UDim2.new(1, 0, 0, 30),
 	}, self.Container)
 
 	local button = Create("TextButton", {
@@ -258,57 +266,52 @@ function BaseGroupbox:AddButton(info, func, idx)
 		AutoButtonColor = false,
 		BackgroundColor3 = COLORS.Surface2,
 		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 1, 0),
-		Font = Enum.Font.GothamMedium,
+		Size = UDim2.fromScale(1, 1),
+		Font = Enum.Font.GothamSemibold,
 		Text = tostring(data.Text or "Button"),
-		TextColor3 = COLORS.Text,
-		TextSize = 12
+		TextColor3 = data.Risky and COLORS.Red or COLORS.Text,
+		TextSize = 12,
 	}, holder)
 
-	Corner(button, 5)
-	local buttonStroke = Stroke(button, COLORS.Stroke2, 1)
+	AddCorner(button, 5)
+	local stroke = AddStroke(button)
 
 	local object = {
+		Type = "Button",
 		Text = tostring(data.Text or "Button"),
 		Func = data.Func or function() end,
 		Disabled = data.Disabled == true,
-		Visible = data.Visible ~= false,
 		Risky = data.Risky == true,
-		Type = "Button",
-		Base = button,
 		Holder = holder,
-		Stroke = buttonStroke,
-		Parent = self
+		Button = button,
+		Stroke = stroke,
+		Parent = self,
 	}
 
-	function object:UpdateColors()
-		if self.Disabled then
-			button.BackgroundColor3 = COLORS.Surface
-			button.TextColor3 = Color3.fromRGB(80, 80, 80)
-		else
-			button.BackgroundColor3 = COLORS.Surface2
-			button.TextColor3 = self.Risky and COLORS.Red or COLORS.Text
-		end
+	function object:SetText(text)
+		self.Text = tostring(text)
+		self.Button.Text = self.Text
 	end
 
 	function object:SetDisabled(value)
 		self.Disabled = value == true
-		self:UpdateColors()
+
+		if self.Disabled then
+			self.Button.TextColor3 = COLORS.Disabled
+			self.Button.BackgroundColor3 = COLORS.Surface
+		else
+			self.Button.TextColor3 = self.Risky and COLORS.Red or COLORS.Text
+			self.Button.BackgroundColor3 = COLORS.Surface2
+		end
 	end
 
 	function object:SetVisible(value)
-		self.Visible = value
-		holder.Visible = value
+		self.Holder.Visible = value == true
 		self.Parent:Resize()
 	end
 
-	function object:SetText(text)
-		self.Text = tostring(text)
-		button.Text = self.Text
-	end
-
 	function object:Destroy()
-		holder:Destroy()
+		self.Holder:Destroy()
 	end
 
 	button.MouseEnter:Connect(function()
@@ -316,13 +319,19 @@ function BaseGroupbox:AddButton(info, func, idx)
 			return
 		end
 
-		TweenService:Create(button, TweenInfo.new(0.12), {
-			BackgroundColor3 = Color3.fromRGB(18, 18, 18)
-		}):Play()
+		TweenService:Create(
+			button,
+			TweenInfo.new(0.12),
+			{
+				BackgroundColor3 = Color3.fromRGB(18, 18, 18),
+			}
+		):Play()
 	end)
 
 	button.MouseLeave:Connect(function()
-		object:UpdateColors()
+		if not object.Disabled then
+			button.BackgroundColor3 = COLORS.Surface2
+		end
 	end)
 
 	button.MouseButton1Click:Connect(function()
@@ -330,42 +339,44 @@ function BaseGroupbox:AddButton(info, func, idx)
 			return
 		end
 
-		SafeCallback(object.Func, false)
+		SafeCallback(object.Func)
 	end)
 
-	holder.Visible = object.Visible
-	object:UpdateColors()
+	object:SetDisabled(object.Disabled)
 
-	return self:_Register(idx, object)
+	self:_Register(nil, object)
+	self:Resize()
+
+	return object
 end
 
-function BaseGroupbox:AddToggle(idx, info)
+function Groupbox:AddToggle(index, info)
 	info = info or {}
 
 	local holder = Create("Frame", {
 		Name = "Toggle",
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 27)
+		Size = UDim2.new(1, 0, 0, 27),
 	}, self.Container)
 
 	local button = Create("TextButton", {
 		Name = "Holder",
 		AutoButtonColor = false,
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 1, 0),
-		Text = ""
+		Size = UDim2.fromScale(1, 1),
+		Text = "",
 	}, holder)
 
-	local box = Create("Frame", {
+	local checkbox = Create("Frame", {
 		Name = "Checkbox",
 		BackgroundColor3 = COLORS.Surface2,
 		BorderSizePixel = 0,
 		Position = UDim2.new(0, 0, 0.5, -8),
-		Size = UDim2.fromOffset(16, 16)
+		Size = UDim2.fromOffset(16, 16),
 	}, button)
 
-	Corner(box, 4)
-	local boxStroke = Stroke(box, COLORS.Stroke2, 1)
+	AddCorner(checkbox, 4)
+	local checkboxStroke = AddStroke(checkbox)
 
 	local check = Create("TextLabel", {
 		Name = "Check",
@@ -375,278 +386,65 @@ function BaseGroupbox:AddToggle(idx, info)
 		Text = "✓",
 		TextColor3 = COLORS.White,
 		TextSize = 11,
-		Visible = false
-	}, box)
+		Visible = false,
+	}, checkbox)
 
 	local label = Create("TextLabel", {
 		Name = "Label",
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 24, 0, 0),
 		Size = UDim2.new(1, -24, 1, 0),
-		Font = Enum.Font.Gotham,
-		Text = tostring(info.Text or idx),
+		Font = Enum.Font.GothamSemibold,
+		Text = tostring(info.Text or index),
 		TextColor3 = COLORS.Text,
 		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Left
+		TextXAlignment = Enum.TextXAlignment.Left,
 	}, button)
 
 	local object = {
-		Text = tostring(info.Text or idx),
+		Type = "Toggle",
+		Text = tostring(info.Text or index),
 		Value = info.Default == true,
 		Callback = info.Callback or function() end,
 		Changed = info.Changed or function() end,
 		Disabled = info.Disabled == true,
-		Visible = info.Visible ~= false,
 		Risky = info.Risky == true,
-		Type = "Toggle",
-		Holder = button,
-		Container = holder,
-		TextLabel = label,
-		Parent = self
+		Holder = holder,
+		Button = button,
+		Label = label,
+		Checkbox = checkbox,
+		Check = check,
+		Stroke = checkboxStroke,
+		Parent = self,
 	}
 
 	function object:Display()
-		check.Visible = self.Value
+		self.Check.Visible = self.Value
 
 		if self.Value then
-			box.BackgroundColor3 = COLORS.Accent
-			boxStroke.Color = COLORS.Accent
+			self.Checkbox.BackgroundColor3 = COLORS.Accent
+			self.Stroke.Color = COLORS.Accent
 		else
-			box.BackgroundColor3 = COLORS.Surface2
-			boxStroke.Color = COLORS.Stroke2
+			self.Checkbox.BackgroundColor3 = COLORS.Surface2
+			self.Stroke.Color = COLORS.Stroke
 		end
 
 		if self.Disabled then
-			label.TextColor3 = Color3.fromRGB(75, 75, 75)
+			self.Label.TextColor3 = COLORS.Disabled
 		else
-			label.TextColor3 = self.Risky and COLORS.Red or COLORS.Text
+			self.Label.TextColor3 = self.Risky and COLORS.Red or COLORS.Text
 		end
 	end
 
 	function object:SetValue(value)
 		value = value == true
 
-		if self.Value == value then
-			self:Display()
-			return
-		end
-
 		self.Value = value
-		Library.Toggles[idx] = self.Value
-		Library.Flags[idx] = self.Value
+
+		Library.Toggles[index] = value
+		Library.Flags[index] = value
 
 		self:Display()
-
-		SafeCallback(self.Callback, self.Value)
-		SafeCallback(self.Changed, self.Value)
-	end
-
-	function object:OnChanged(callback)
-		self.Changed = callback
-		return self
-	end
-
-	function object:SetDisabled(value)
-		self.Disabled = value == true
-		self:Display()
-	end
-
-	function object:SetVisible(value)
-		self.Visible = value
-		holder.Visible = value
-		self.Parent:Resize()
-	end
-
-	function object:SetText(text)
-		self.Text = tostring(text)
-		label.Text = self.Text
-	end
-
-	function object:AddKeyPicker(keyIdx, keyInfo)
-		local picker = {
-			Type = "KeyPicker",
-			Text = keyInfo.Text or keyIdx,
-			Value = keyInfo.Default or "None",
-			Mode = keyInfo.Mode or "Toggle",
-			Toggled = false,
-			Callback = keyInfo.Callback or function() end,
-			ChangedCallback = keyInfo.ChangedCallback or function() end,
-			Changed = keyInfo.Changed or function() end,
-			Clicked = keyInfo.Clicked or function() end
-		}
-
-		function picker:GetState()
-			return self.Toggled
-		end
-
-		function picker:SetValue(data)
-			if typeof(data) == "table" then
-				if data[1] then
-					self.Value = data[1]
-				end
-
-				if data[2] then
-					self.Mode = data[2]
-				end
-			elseif typeof(data) == "string" then
-				self.Value = data
-			end
-		end
-
-		function picker:OnChanged(callback)
-			self.Changed = callback
-			return self
-		end
-
-		function picker:OnClick(callback)
-			self.Clicked = callback
-			return self
-		end
-
-		function picker:DoClick()
-			SafeCallback(self.Clicked)
-		end
-
-		Library.Options[keyIdx] = picker
-		Library.Registry[keyIdx] = picker
-
-		return object
-	end
-
-	function object:AddColorPicker(colorIdx, colorInfo)
-		local picker = {
-			Type = "ColorPicker",
-			Value = colorInfo.Default or Color3.fromRGB(255, 255, 255),
-			Transparency = colorInfo.Transparency or 0,
-			Title = colorInfo.Title or colorIdx,
-			Callback = colorInfo.Callback or function() end,
-			Changed = colorInfo.Changed or function() end
-		}
-
-		function picker:SetValueRGB(color, transparency)
-			self.Value = color
-			if transparency ~= nil then
-				self.Transparency = transparency
-			end
-
-			SafeCallback(self.Callback, self.Value)
-			SafeCallback(self.Changed, self.Value)
-		end
-
-		function picker:SetValue(_, transparency)
-			if transparency ~= nil then
-				self.Transparency = transparency
-			end
-		end
-
-		function picker:OnChanged(callback)
-			self.Changed = callback
-			return self
-		end
-
-		Library.Options[colorIdx] = picker
-		Library.Registry[colorIdx] = picker
-
-		return object
-	end
-
-	function object:Destroy()
-		holder:Destroy()
-	end
-
-	button.MouseButton1Click:Connect(function()
-		if not object.Disabled then
-			object:SetValue(not object.Value)
-		end
-	end)
-
-	holder.Visible = object.Visible
-
-	Library.Toggles[idx] = object.Value
-	Library.Flags[idx] = object.Value
-
-	object:Display()
-
-	return self:_Register(idx, object)
-end
-
-function BaseGroupbox:AddCheckbox(idx, info)
-	return self:AddToggle(idx, info)
-end
-
-function BaseGroupbox:AddInput(idx, info)
-	info = info or {}
-
-	local holder = Create("Frame", {
-		Name = "Input",
-		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 52)
-	}, self.Container)
-
-	local label = Create("TextLabel", {
-		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 20),
-		Font = Enum.Font.Gotham,
-		Text = tostring(info.Text or idx),
-		TextColor3 = COLORS.Text,
-		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Left
-	}, holder)
-
-	local box = Create("TextBox", {
-		BackgroundColor3 = COLORS.Surface2,
-		BorderSizePixel = 0,
-		Position = UDim2.new(0, 0, 0, 24),
-		Size = UDim2.new(1, 0, 0, 28),
-		ClearTextOnFocus = info.ClearTextOnFocus ~= false,
-		Font = Enum.Font.Gotham,
-		PlaceholderText = tostring(info.Placeholder or ""),
-		PlaceholderColor3 = Color3.fromRGB(85, 85, 85),
-		Text = tostring(info.Default or ""),
-		TextColor3 = COLORS.Text,
-		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Left
-	}, holder)
-
-	Corner(box, 5)
-	Stroke(box, COLORS.Stroke2, 1)
-	Padding(box, 9, 9, 0, 0)
-
-	local object = {
-		Text = tostring(info.Text or idx),
-		Value = tostring(info.Default or ""),
-		Finished = info.Finished == true,
-		Numeric = info.Numeric == true,
-		ClearTextOnFocus = info.ClearTextOnFocus ~= false,
-		Placeholder = tostring(info.Placeholder or ""),
-		AllowEmpty = info.AllowEmpty ~= false,
-		EmptyReset = tostring(info.EmptyReset or ""),
-		Callback = info.Callback or function() end,
-		Changed = info.Changed or function() end,
-		Disabled = info.Disabled == true,
-		Visible = info.Visible ~= false,
-		Type = "Input",
-		Holder = holder,
-		Parent = self
-	}
-
-	function object:SetValue(value)
-		value = tostring(value)
-
-		if self.Numeric then
-			local number = tonumber(value)
-
-			if number then
-				value = tostring(number)
-			end
-		end
-
-		if value == "" and not self.AllowEmpty then
-			value = self.EmptyReset
-		end
-
-		self.Value = value
-		box.Text = value
 
 		SafeCallback(self.Callback, value)
 		SafeCallback(self.Changed, value)
@@ -659,77 +457,163 @@ function BaseGroupbox:AddInput(idx, info)
 
 	function object:SetDisabled(value)
 		self.Disabled = value == true
-		box.TextEditable = not self.Disabled
-		box.TextColor3 = self.Disabled and Color3.fromRGB(70, 70, 70) or COLORS.Text
-	end
-
-	function object:SetVisible(value)
-		self.Visible = value
-		holder.Visible = value
-		self.Parent:Resize()
+		self:Display()
 	end
 
 	function object:SetText(text)
 		self.Text = tostring(text)
-		label.Text = self.Text
+		self.Label.Text = self.Text
+	end
+
+	function object:SetVisible(value)
+		self.Holder.Visible = value == true
+		self.Parent:Resize()
 	end
 
 	function object:Destroy()
-		holder:Destroy()
+		self.Holder:Destroy()
+	end
+
+	button.MouseButton1Click:Connect(function()
+		if not object.Disabled then
+			object:SetValue(not object.Value)
+		end
+	end)
+
+	Library.Toggles[index] = object.Value
+	Library.Flags[index] = object.Value
+
+	object:Display()
+
+	return self:_Register(index, object)
+end
+
+function Groupbox:AddCheckbox(index, info)
+	return self:AddToggle(index, info)
+end
+
+function Groupbox:AddInput(index, info)
+	info = info or {}
+
+	local holder = Create("Frame", {
+		Name = "Input",
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 52),
+	}, self.Container)
+
+	local label = Create("TextLabel", {
+		Name = "Label",
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 20),
+		Font = Enum.Font.GothamSemibold,
+		Text = tostring(info.Text or index),
+		TextColor3 = COLORS.Text,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, holder)
+
+	local box = Create("TextBox", {
+		Name = "TextBox",
+		BackgroundColor3 = COLORS.Surface2,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 0, 0, 24),
+		Size = UDim2.new(1, 0, 0, 28),
+		ClearTextOnFocus = info.ClearTextOnFocus ~= false,
+		Font = Enum.Font.GothamMedium,
+		PlaceholderText = tostring(info.Placeholder or ""),
+		PlaceholderColor3 = COLORS.Disabled,
+		Text = tostring(info.Default or ""),
+		TextColor3 = COLORS.Text,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, holder)
+
+	AddCorner(box, 5)
+	AddStroke(box)
+	AddPadding(box, 9, 9, 0, 0)
+
+	local object = {
+		Type = "Input",
+		Text = tostring(info.Text or index),
+		Value = tostring(info.Default or ""),
+		Callback = info.Callback or function() end,
+		Changed = info.Changed or function() end,
+		Numeric = info.Numeric == true,
+		Finished = info.Finished == true,
+		AllowEmpty = info.AllowEmpty ~= false,
+		EmptyReset = tostring(info.EmptyReset or ""),
+		Holder = holder,
+		TextBox = box,
+		Label = label,
+		Parent = self,
+	}
+
+	function object:SetValue(value)
+		value = tostring(value)
+
+		if self.Numeric and not tonumber(value) then
+			return
+		end
+
+		if value == "" and not self.AllowEmpty then
+			value = self.EmptyReset
+		end
+
+		self.Value = value
+		self.TextBox.Text = value
+
+		SafeCallback(self.Callback, value)
+		SafeCallback(self.Changed, value)
+	end
+
+	function object:OnChanged(callback)
+		self.Changed = callback
+		return self
+	end
+
+	function object:SetText(text)
+		self.Text = tostring(text)
+		self.Label.Text = self.Text
+	end
+
+	function object:SetVisible(value)
+		self.Holder.Visible = value == true
+		self.Parent:Resize()
+	end
+
+	function object:Destroy()
+		self.Holder:Destroy()
 	end
 
 	box.FocusLost:Connect(function()
-		if object.Disabled then
-			return
-		end
-
 		local value = box.Text
 
-		if object.Numeric then
-			local number = tonumber(value)
-
-			if not number then
-				box.Text = object.Value
-				return
-			end
+		if object.Numeric and value ~= "" and not tonumber(value) then
+			box.Text = object.Value
+			return
 		end
 
 		if value == "" and not object.AllowEmpty then
-			box.Text = object.EmptyReset
-			object.Value = object.EmptyReset
-		else
-			object.Value = value
+			value = object.EmptyReset
+			box.Text = value
 		end
 
-		SafeCallback(object.Callback, object.Value)
+		object.Value = value
+
+		SafeCallback(object.Callback, value)
+		SafeCallback(object.Changed, value)
 	end)
 
-	box:GetPropertyChangedSignal("Text"):Connect(function()
-		if object.Disabled then
-			return
-		end
-
-		if object.Finished then
-			return
-		end
-
-		object.Value = box.Text
-		SafeCallback(object.Changed, object.Value)
-	end)
-
-	box.Visible = object.Visible
-	object:SetDisabled(object.Disabled)
-
-	return self:_Register(idx, object)
+	return self:_Register(index, object)
 end
 
-function BaseGroupbox:AddSlider(idx, info)
+function Groupbox:AddSlider(index, info)
 	info = info or {}
 
 	local min = tonumber(info.Min) or 0
 	local max = tonumber(info.Max) or 100
-	local rounding = tonumber(info.Rounding) or 0
 	local default = tonumber(info.Default) or min
+	local rounding = tonumber(info.Rounding) or 0
 
 	if max < min then
 		min, max = max, min
@@ -740,88 +624,89 @@ function BaseGroupbox:AddSlider(idx, info)
 	local holder = Create("Frame", {
 		Name = "Slider",
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 48)
+		Size = UDim2.new(1, 0, 0, 48),
 	}, self.Container)
 
 	local label = Create("TextLabel", {
+		Name = "Label",
 		BackgroundTransparency = 1,
 		Size = UDim2.new(0.7, 0, 0, 20),
-		Font = Enum.Font.Gotham,
-		Text = tostring(info.Text or idx),
+		Font = Enum.Font.GothamSemibold,
+		Text = tostring(info.Text or index),
 		TextColor3 = COLORS.Text,
 		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Left
+		TextXAlignment = Enum.TextXAlignment.Left,
 	}, holder)
 
 	local valueLabel = Create("TextLabel", {
-		BackgroundTransparency = 1,
+		Name = "Value",
 		AnchorPoint = Vector2.new(1, 0),
+		BackgroundTransparency = 1,
 		Position = UDim2.new(1, 0, 0, 0),
 		Size = UDim2.new(0.3, 0, 0, 20),
-		Font = Enum.Font.GothamMedium,
+		Font = Enum.Font.GothamSemibold,
 		TextColor3 = COLORS.SubText,
-		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Right
+		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Right,
 	}, holder)
 
 	local bar = Create("Frame", {
+		Name = "Bar",
 		BackgroundColor3 = COLORS.Surface2,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0, 0, 0, 27),
-		Size = UDim2.new(1, 0, 0, 8)
+		Position = UDim2.new(0, 0, 0, 28),
+		Size = UDim2.new(1, 0, 0, 8),
 	}, holder)
 
-	Corner(bar, 4)
-	Stroke(bar, COLORS.Stroke2, 1)
+	AddCorner(bar, 4)
+	AddStroke(bar)
 
 	local fill = Create("Frame", {
+		Name = "Fill",
 		BackgroundColor3 = COLORS.Accent,
 		BorderSizePixel = 0,
-		Size = UDim2.new(0, 0, 1, 0)
+		Size = UDim2.new(0, 0, 1, 0),
 	}, bar)
 
-	Corner(fill, 4)
+	AddCorner(fill, 4)
 
 	local object = {
-		Text = tostring(info.Text or idx),
+		Type = "Slider",
+		Text = tostring(info.Text or index),
 		Value = default,
 		Min = min,
 		Max = max,
+		Rounding = rounding,
 		Prefix = tostring(info.Prefix or ""),
 		Suffix = tostring(info.Suffix or ""),
-		Rounding = rounding,
 		Callback = info.Callback or function() end,
 		Changed = info.Changed or function() end,
-		Disabled = info.Disabled == true,
-		Visible = info.Visible ~= false,
-		AllowRightClickInput = info.AllowRightClickInput == true,
-		Type = "Slider",
+		Disabled = false,
 		Holder = holder,
-		Parent = self
+		Bar = bar,
+		Fill = fill,
+		Label = label,
+		ValueLabel = valueLabel,
+		Parent = self,
 	}
 
 	function object:Display()
-		local alpha = (self.Value - self.Min) / (self.Max - self.Min)
+		local alpha = 0
 
-		if self.Max == self.Min then
-			alpha = 0
+		if self.Max ~= self.Min then
+			alpha = (self.Value - self.Min) / (self.Max - self.Min)
 		end
 
 		alpha = math.clamp(alpha, 0, 1)
 
-		fill.Size = UDim2.new(alpha, 0, 1, 0)
+		self.Fill.Size = UDim2.new(alpha, 0, 1, 0)
+		self.ValueLabel.Text =
+			self.Prefix ..
+			tostring(self.Value) ..
+			self.Suffix
 
-		local display = self.Prefix .. tostring(self.Value) .. self.Suffix
-
-		valueLabel.Text = display
-
-		if self.Disabled then
-			fill.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
-			label.TextColor3 = Color3.fromRGB(75, 75, 75)
-		else
-			fill.BackgroundColor3 = COLORS.Accent
-			label.TextColor3 = COLORS.Text
-		end
+		self.Fill.BackgroundColor3 =
+			self.Disabled and COLORS.Disabled or COLORS.Accent
 	end
 
 	function object:SetValue(value)
@@ -832,15 +717,10 @@ function BaseGroupbox:AddSlider(idx, info)
 		end
 
 		value = math.clamp(value, self.Min, self.Max)
-		value = RoundNumber(value, self.Rounding)
-
-		if self.Value == value then
-			self:Display()
-			return
-		end
+		value = Round(value, self.Rounding)
 
 		self.Value = value
-		Library.Flags[idx] = value
+		Library.Flags[index] = value
 
 		self:Display()
 
@@ -853,14 +733,9 @@ function BaseGroupbox:AddSlider(idx, info)
 		return self
 	end
 
-	function object:SetMin(value)
-		self.Min = tonumber(value) or self.Min
-		self:SetValue(self.Value)
-	end
-
-	function object:SetMax(value)
-		self.Max = tonumber(value) or self.Max
-		self:SetValue(self.Value)
+	function object:SetVisible(value)
+		self.Holder.Visible = value == true
+		self.Parent:Resize()
 	end
 
 	function object:SetDisabled(value)
@@ -868,60 +743,45 @@ function BaseGroupbox:AddSlider(idx, info)
 		self:Display()
 	end
 
-	function object:SetVisible(value)
-		self.Visible = value
-		holder.Visible = value
-		self.Parent:Resize()
-	end
-
 	function object:SetText(text)
 		self.Text = tostring(text)
-		label.Text = self.Text
-	end
-
-	function object:SetPrefix(prefix)
-		self.Prefix = tostring(prefix)
-		self:Display()
-	end
-
-	function object:SetSuffix(suffix)
-		self.Suffix = tostring(suffix)
-		self:Display()
+		self.Label.Text = self.Text
 	end
 
 	function object:Destroy()
-		holder:Destroy()
+		self.Holder:Destroy()
 	end
 
 	local dragging = false
 
-	local function updateFromMouse()
+	local function update()
 		if object.Disabled then
 			return
 		end
 
-		local mousePosition = UserInputService:GetMouseLocation()
-		local absolutePosition = bar.AbsolutePosition
-		local absoluteSize = bar.AbsoluteSize
+		local mouse = UserInputService:GetMouseLocation()
+		local position = bar.AbsolutePosition
+		local size = bar.AbsoluteSize
 
-		local alpha = (mousePosition.X - absolutePosition.X) / absoluteSize.X
+		local alpha = (mouse.X - position.X) / size.X
 		alpha = math.clamp(alpha, 0, 1)
 
-		local value = object.Min + (object.Max - object.Min) * alpha
-
-		object:SetValue(value)
+		object:SetValue(
+			object.Min +
+			(object.Max - object.Min) * alpha
+		)
 	end
 
 	bar.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
 			dragging = true
-			updateFromMouse()
+			update()
 		end
 	end)
 
 	UserInputService.InputChanged:Connect(function(input)
 		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-			updateFromMouse()
+			update()
 		end
 	end)
 
@@ -933,103 +793,119 @@ function BaseGroupbox:AddSlider(idx, info)
 
 	object:Display()
 
-	return self:_Register(idx, object)
+	return self:_Register(index, object)
 end
 
-function BaseGroupbox:AddDropdown(idx, info)
+function Groupbox:AddDropdown(index, info)
 	info = info or {}
-
-	local values = info.Values or {}
-	local multi = info.Multi == true
 
 	local holder = Create("Frame", {
 		Name = "Dropdown",
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 52)
+		Size = UDim2.new(1, 0, 0, 52),
+		ZIndex = 5,
 	}, self.Container)
 
 	local label = Create("TextLabel", {
+		Name = "Label",
 		BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 20),
-		Font = Enum.Font.Gotham,
-		Text = tostring(info.Text or idx),
+		Font = Enum.Font.GothamSemibold,
+		Text = tostring(info.Text or index),
 		TextColor3 = COLORS.Text,
 		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Left
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 5,
 	}, holder)
 
 	local button = Create("TextButton", {
+		Name = "Button",
 		AutoButtonColor = false,
 		BackgroundColor3 = COLORS.Surface2,
 		BorderSizePixel = 0,
 		Position = UDim2.new(0, 0, 0, 24),
 		Size = UDim2.new(1, 0, 0, 28),
-		Font = Enum.Font.Gotham,
+		Font = Enum.Font.GothamMedium,
 		Text = "",
 		TextColor3 = COLORS.Text,
 		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Left
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 6,
 	}, holder)
 
-	Corner(button, 5)
-	Stroke(button, COLORS.Stroke2, 1)
-	Padding(button, 9, 9, 0, 0)
+	AddCorner(button, 5)
+	AddStroke(button)
+	AddPadding(button, 9, 30, 0, 0)
 
 	local arrow = Create("TextLabel", {
+		Name = "Arrow",
 		AnchorPoint = Vector2.new(1, 0.5),
 		BackgroundTransparency = 1,
 		Position = UDim2.new(1, -8, 0.5, 0),
-		Size = UDim2.fromOffset(14, 14),
+		Size = UDim2.fromOffset(15, 15),
 		Font = Enum.Font.GothamBold,
 		Text = "⌄",
 		TextColor3 = COLORS.SubText,
-		TextSize = 14
+		TextSize = 13,
+		ZIndex = 7,
 	}, button)
 
-	local list = Create("ScrollingFrame", {
-		Name = "List",
-		Active = true,
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		BackgroundColor3 = COLORS.Surface,
+	local popup = Create("Frame", {
+		Name = "DropdownPopup",
+		BackgroundColor3 = COLORS.Background,
 		BorderSizePixel = 0,
-		CanvasSize = UDim2.new(),
 		Position = UDim2.new(0, 0, 1, 4),
-		ScrollBarThickness = 2,
-		ScrollBarImageColor3 = COLORS.Accent,
 		Size = UDim2.new(1, 0, 0, 0),
 		Visible = false,
-		ZIndex = 20
+		ZIndex = 100,
 	}, button)
 
-	Corner(list, 5)
-	Stroke(list, COLORS.Stroke, 1)
-	Padding(list, 4, 4, 4, 4)
+	AddCorner(popup, 5)
+	AddStroke(popup)
+
+	local scroll = Create("ScrollingFrame", {
+		Name = "Options",
+		Active = true,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		CanvasSize = UDim2.new(),
+		Position = UDim2.fromOffset(4, 4),
+		ScrollBarThickness = 2,
+		ScrollBarImageColor3 = COLORS.Accent,
+		Size = UDim2.new(1, -8, 1, -8),
+		ZIndex = 101,
+	}, popup)
+
+	AddStroke(scroll)
 
 	Create("UIListLayout", {
-		Padding = UDim.new(0, 2),
-		SortOrder = Enum.SortOrder.LayoutOrder
-	}, list)
+		Padding = UDim.new(0, 3),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, scroll)
 
 	local object = {
-		Text = tostring(info.Text or idx),
-		Values = values,
-		Multi = multi,
-		Value = nil,
-		DisabledValues = info.DisabledValues or {},
-		ValueImages = info.ValueImages or {},
+		Type = "Dropdown",
+		Text = tostring(info.Text or index),
+		Values = info.Values or {},
+		Value = info.Default,
+		Multi = info.Multi == true,
 		Callback = info.Callback or function() end,
 		Changed = info.Changed or function() end,
-		Disabled = info.Disabled == true,
-		Visible = info.Visible ~= false,
-		Type = "Dropdown",
+		DisabledValues = info.DisabledValues or {},
+		Disabled = false,
+		Open = false,
 		Holder = holder,
+		Button = button,
+		Popup = popup,
+		OptionsFrame = scroll,
+		Label = label,
 		Parent = self,
-		Open = false
 	}
 
 	local function isDisabled(value)
-		for _, disabledValue in pairs(object.DisabledValues) do
-			if disabledValue == value then
+		for _, disabled in pairs(object.DisabledValues) do
+			if disabled == value then
 				return true
 			end
 		end
@@ -1037,33 +913,153 @@ function BaseGroupbox:AddDropdown(idx, info)
 		return false
 	end
 
-	local function displayValue()
+	local function getDisplay()
 		if object.Multi then
 			local selected = {}
 
 			if typeof(object.Value) == "table" then
-				for value, state in pairs(object.Value) do
-					if state then
+				for value, enabled in pairs(object.Value) do
+					if enabled then
 						table.insert(selected, tostring(value))
 					end
 				end
 			end
 
-			button.Text = #selected > 0 and table.concat(selected, ", ") or "None"
-		else
-			button.Text = object.Value ~= nil and tostring(object.Value) or "None"
+			return #selected > 0
+				and table.concat(selected, ", ")
+				or "None"
 		end
+
+		return object.Value ~= nil
+			and tostring(object.Value)
+			or "None"
 	end
 
-	local function rebuild()
-		for _, child in ipairs(list:GetChildren()) do
+	function object:SetOpen(value)
+		if self.Disabled then
+			return
+		end
+
+		self.Open = value == true
+
+		self.Popup.Visible = self.Open
+
+		if self.Open then
+			local count = 0
+
+			for _, value in pairs(self.Values) do
+				count += 1
+			end
+
+			self.Popup.Size = UDim2.new(
+				1,
+				0,
+				0,
+				math.clamp(count * 29 + 10, 35, 190)
+			)
+
+			self.Button.TextColor3 = COLORS.White
+			self.Parent:Resize()
+		else
+			self.Popup.Size = UDim2.new(1, 0, 0, 0)
+			self.Button.TextColor3 = COLORS.Text
+		end
+
+		self.Button.Text = getDisplay()
+		self.Arrow.Text = self.Open and "⌃" or "⌄"
+	end
+
+	function object:SetValue(value)
+		if self.Multi then
+			if typeof(value) ~= "table" then
+				value = {}
+			end
+		end
+
+		self.Value = value
+
+		self.Button.Text = getDisplay()
+
+		SafeCallback(self.Callback, value)
+		SafeCallback(self.Changed, value)
+	end
+
+	function object:GetActiveValues(returnCount)
+		if not self.Multi then
+			if returnCount then
+				return self.Value and 1 or 0
+			end
+
+			return {
+				self.Value
+			}
+		end
+
+		local result = {}
+
+		for value, enabled in pairs(self.Value or {}) do
+			if enabled then
+				table.insert(result, value)
+			end
+		end
+
+		if returnCount then
+			return #result
+		end
+
+		return result
+	end
+
+	function object:SetValues(values)
+		self.Values = values or {}
+		self:Rebuild()
+	end
+
+	function object:AddValues(values)
+		if typeof(values) == "string" then
+			values = {
+				values
+			}
+		end
+
+		for key, value in pairs(values or {}) do
+			self.Values[key] = value
+		end
+
+		self:Rebuild()
+	end
+
+	function object:SetDisabledValues(values)
+		self.DisabledValues = values or {}
+		self:Rebuild()
+	end
+
+	function object:SetDisabled(value)
+		self.Disabled = value == true
+
+		self.Button.TextColor3 =
+			self.Disabled and COLORS.Disabled or COLORS.Text
+	end
+
+	function object:SetVisible(value)
+		self.Holder.Visible = value == true
+		self.Parent:Resize()
+	end
+
+	function object:OnChanged(callback)
+		self.Changed = callback
+		return self
+	end
+
+	function object:Rebuild()
+		for _, child in ipairs(self.OptionsFrame:GetChildren()) do
 			if child:IsA("TextButton") then
 				child:Destroy()
 			end
 		end
 
-		for key, value in pairs(object.Values) do
-			local actualValue = value
+		for key, value in pairs(self.Values) do
+			local actualValue
 
 			if typeof(key) == "number" then
 				actualValue = value
@@ -1072,28 +1068,30 @@ function BaseGroupbox:AddDropdown(idx, info)
 			end
 
 			local option = Create("TextButton", {
+				Name = tostring(actualValue),
 				AutoButtonColor = false,
 				BackgroundColor3 = COLORS.Surface2,
 				BorderSizePixel = 0,
 				Size = UDim2.new(1, 0, 0, 26),
-				Font = Enum.Font.Gotham,
+				Font = Enum.Font.GothamMedium,
 				Text = tostring(actualValue),
 				TextColor3 = COLORS.Text,
 				TextSize = 11,
 				TextXAlignment = Enum.TextXAlignment.Left,
-				ZIndex = 21
-			}, list)
+				ZIndex = 102,
+			}, self.OptionsFrame)
 
-			Corner(option, 4)
-			Padding(option, 8, 8, 0, 0)
+			AddCorner(option, 4)
+			AddStroke(option)
+			AddPadding(option, 8, 8, 0, 0)
 
 			if isDisabled(actualValue) then
-				option.TextColor3 = Color3.fromRGB(70, 70, 70)
+				option.TextColor3 = COLORS.Disabled
 			end
 
 			option.MouseEnter:Connect(function()
 				if not isDisabled(actualValue) then
-					option.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+					option.BackgroundColor3 = Color3.fromRGB(19, 19, 19)
 				end
 			end)
 
@@ -1106,240 +1104,117 @@ function BaseGroupbox:AddDropdown(idx, info)
 					return
 				end
 
-				if object.Multi then
-					if typeof(object.Value) ~= "table" then
-						object.Value = {}
+				if self.Multi then
+					if typeof(self.Value) ~= "table" then
+						self.Value = {}
 					end
 
-					object.Value[actualValue] = not object.Value[actualValue]
+					self.Value[actualValue] =
+						not self.Value[actualValue]
 				else
-					object.Value = actualValue
-					object:SetOpen(false)
+					self.Value = actualValue
+					self:SetOpen(false)
 				end
 
-				displayValue()
+				self.Button.Text = getDisplay()
 
-				SafeCallback(object.Callback, object.Value)
-				SafeCallback(object.Changed, object.Value)
+				SafeCallback(self.Callback, self.Value)
+				SafeCallback(self.Changed, self.Value)
 			end)
 		end
-	end
 
-	function object:SetOpen(state)
-		self.Open = state == true
-		list.Visible = self.Open
-
-		if self.Open then
-			list.Size = UDim2.new(1, 0, 0, math.min(#self.Values * 28 + 8, 180))
-			arrow.Text = "⌃"
-		else
-			arrow.Text = "⌄"
-		end
-	end
-
-	function object:SetValue(value)
-		if self.Multi then
-			if typeof(value) ~= "table" then
-				value = {}
-			end
-
-			self.Value = value
-		else
-			self.Value = value
-		end
-
-		displayValue()
-
-		SafeCallback(self.Callback, self.Value)
-		SafeCallback(self.Changed, self.Value)
-	end
-
-	function object:GetActiveValues(returnCount)
-		if not self.Multi then
-			if returnCount then
-				return self.Value and 1 or 0
-			end
-
-			return { self.Value }
-		end
-
-		local result = {}
-
-		for value, state in pairs(self.Value or {}) do
-			if state then
-				table.insert(result, value)
-			end
-		end
-
-		if returnCount then
-			return #result
-		end
-
-		return result
-	end
-
-	function object:SetValues(newValues)
-		self.Values = newValues or {}
-		rebuild()
-	end
-
-	function object:AddValues(newValues)
-		if typeof(newValues) == "string" then
-			newValues = { newValues }
-		end
-
-		if typeof(newValues) == "table" then
-			for key, value in pairs(newValues) do
-				self.Values[key] = value
-			end
-		end
-
-		rebuild()
-	end
-
-	function object:SetDisabledValues(disabledValues)
-		self.DisabledValues = disabledValues or {}
-		rebuild()
-	end
-
-	function object:AddDisabledValues(disabledValues)
-		if typeof(disabledValues) == "string" then
-			disabledValues = { disabledValues }
-		end
-
-		for _, value in pairs(disabledValues or {}) do
-			table.insert(self.DisabledValues, value)
-		end
-
-		rebuild()
-	end
-
-	function object:SetValueImages(images)
-		self.ValueImages = images or {}
-		rebuild()
-	end
-
-	function object:SetDisabled(value)
-		self.Disabled = value == true
-		button.TextColor3 = self.Disabled and Color3.fromRGB(70, 70, 70) or COLORS.Text
-	end
-
-	function object:SetVisible(value)
-		self.Visible = value
-		holder.Visible = value
-		self.Parent:Resize()
-	end
-
-	function object:SetText(text)
-		self.Text = tostring(text)
-		label.Text = self.Text
-	end
-
-	function object:OnChanged(callback)
-		self.Changed = callback
-		return self
+		self.Button.Text = getDisplay()
 	end
 
 	function object:Destroy()
-		holder:Destroy()
+		self:SetOpen(false)
+		self.Holder:Destroy()
 	end
 
 	button.MouseButton1Click:Connect(function()
-		if not object.Disabled then
-			object:SetOpen(not object.Open)
-		end
+		object:SetOpen(not object.Open)
 	end)
 
-	UserInputService.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 and object.Open then
-			local mousePosition = UserInputService:GetMouseLocation()
-			local position = button.AbsolutePosition
-			local size = button.AbsoluteSize
+	object:Rebuild()
 
-			local insideButton =
-				mousePosition.X >= position.X and
-				mousePosition.X <= position.X + size.X and
-				mousePosition.Y >= position.Y and
-				mousePosition.Y <= position.Y + size.Y
-
-			if not insideButton then
-				object:SetOpen(false)
-			end
-		end
-	end)
-
-	rebuild()
-
-	if info.Default ~= nil then
-		object:SetValue(info.Default)
-	elseif multi then
+	if object.Multi and typeof(object.Value) ~= "table" then
 		object.Value = {}
-		displayValue()
 	end
 
-	return self:_Register(idx, object)
+	object.Button.Text = getDisplay()
+
+	return self:_Register(index, object)
 end
 
-function BaseGroupbox:AddTabbox(info)
+function Groupbox:AddTabbox(info)
 	local name
 
 	if typeof(info) == "string" then
 		name = info
 	else
-		info = info or {}
-		name = info.Name or "Tabbox"
+		name = info and info.Name or "Tabbox"
 	end
 
 	local holder = Create("Frame", {
-		Name = name,
-		BackgroundColor3 = COLORS.Surface,
+		Name = tostring(name),
+		BackgroundColor3 = COLORS.Background,
 		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 0, 150)
+		Size = UDim2.new(1, 0, 0, 130),
 	}, self.Container)
 
-	Corner(holder, 5)
-	Stroke(holder, COLORS.Stroke, 1)
+	AddCorner(holder, 6)
+	AddStroke(holder)
 
-	local tabs = Create("Frame", {
-		BackgroundColor3 = COLORS.Surface2,
+	local tabbar = Create("Frame", {
+		Name = "Tabbar",
+		BackgroundColor3 = COLORS.Surface,
 		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 0, 30)
+		Size = UDim2.new(1, 0, 0, 31),
 	}, holder)
 
-	Corner(tabs, 5)
+	AddCorner(tabbar, 6)
+	AddStroke(tabbar)
+
+	local tabs = Create("Frame", {
+		Name = "Buttons",
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 1, 0),
+	}, tabbar)
 
 	local tabLayout = Create("UIListLayout", {
 		FillDirection = Enum.FillDirection.Horizontal,
-		SortOrder = Enum.SortOrder.LayoutOrder
+		SortOrder = Enum.SortOrder.LayoutOrder,
 	}, tabs)
 
 	local content = Create("Frame", {
+		Name = "Content",
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 6, 0, 36),
-		Size = UDim2.new(1, -12, 1, -42)
+		Position = UDim2.new(0, 8, 0, 39),
+		Size = UDim2.new(1, -16, 1, -47),
 	}, holder)
 
 	local tabbox = {
 		Type = "Tabbox",
 		Holder = holder,
-		BoxHolder = holder,
 		Tabs = {},
 		ActiveTab = nil,
-		ParentBox = self
+		Parent = self,
 	}
 
-	function tabbox:AddTab(tabName, iconName)
+	function tabbox:AddTab(tabName)
 		local button = Create("TextButton", {
+			Name = tostring(tabName),
 			AutoButtonColor = false,
 			BackgroundTransparency = 1,
-			Size = UDim2.new(0, 100, 1, 0),
-			Font = Enum.Font.GothamMedium,
+			Size = UDim2.fromOffset(90, 31),
+			Font = Enum.Font.GothamSemibold,
 			Text = tostring(tabName),
 			TextColor3 = COLORS.SubText,
-			TextSize = 11
+			TextSize = 11,
 		}, tabs)
 
-		local tabContainer = Create("ScrollingFrame", {
+		local page = Create("ScrollingFrame", {
+			Name = tostring(tabName),
 			Active = true,
 			AutomaticCanvasSize = Enum.AutomaticSize.Y,
 			BackgroundTransparency = 1,
@@ -1348,40 +1223,41 @@ function BaseGroupbox:AddTabbox(info)
 			ScrollBarThickness = 2,
 			ScrollBarImageColor3 = COLORS.Accent,
 			Size = UDim2.fromScale(1, 1),
-			Visible = false
+			Visible = false,
 		}, content)
 
 		Create("UIListLayout", {
 			Padding = UDim.new(0, 6),
-			SortOrder = Enum.SortOrder.LayoutOrder
-		}, tabContainer)
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}, page)
 
 		local subtab = setmetatable({
+			Type = "Tab",
 			Name = tostring(tabName),
-			ButtonHolder = button,
-			Container = tabContainer,
-			Tabbox = tabbox,
+			Button = button,
+			Container = page,
 			Elements = {},
-			DependencyBoxes = {}
-		}, BaseGroupbox)
+			DependencyBoxes = {},
+			Parent = tabbox,
+		}, Groupbox)
 
 		function subtab:Show()
-			tabContainer.Visible = true
-			button.TextColor3 = COLORS.Text
+			for _, other in pairs(tabbox.Tabs) do
+				other.Container.Visible = false
+				other.Button.TextColor3 = COLORS.SubText
+			end
+
+			self.Container.Visible = true
+			self.Button.TextColor3 = COLORS.Text
 			tabbox.ActiveTab = self
-			self:Resize()
 		end
 
 		function subtab:Hide()
-			tabContainer.Visible = false
-			button.TextColor3 = COLORS.SubText
+			self.Container.Visible = false
+			self.Button.TextColor3 = COLORS.SubText
 		end
 
 		button.MouseButton1Click:Connect(function()
-			for _, tab in pairs(tabbox.Tabs) do
-				tab:Hide()
-			end
-
 			subtab:Show()
 		end)
 
@@ -1394,38 +1270,77 @@ function BaseGroupbox:AddTabbox(info)
 		return subtab
 	end
 
-	return tabbox
-end
-
-local Groupbox = {}
-Groupbox.__index = Groupbox
-setmetatable(Groupbox, { __index = BaseGroupbox })
-
-function Groupbox:SetDescription(description)
-	self.Description = description
-
-	if self.DescriptionLabel then
-		self.DescriptionLabel.Text = description or ""
-		self.DescriptionLabel.Visible = description ~= nil
-	end
-
 	self:Resize()
-end
 
-function Groupbox:SetCollapsed(collapsed)
-	self.Collapsed = collapsed == true
-
-	if self.Container then
-		self.Container.Visible = not self.Collapsed
-	end
-end
-
-function Groupbox:ToggleCollapsed()
-	self:SetCollapsed(not self.Collapsed)
+	return tabbox
 end
 
 local Tab = {}
 Tab.__index = Tab
+
+function Tab:_CreateGroupbox(name, side)
+	local column = side == "Left"
+		and self.LeftColumn
+		or self.RightColumn
+
+	local holder = Create("Frame", {
+		Name = tostring(name),
+		BackgroundColor3 = COLORS.Background,
+		BorderSizePixel = 0,
+		Size = UDim2.new(1, 0, 0, 45),
+	}, column)
+
+	AddCorner(holder, 6)
+	AddStroke(holder)
+
+	local title = Create("TextLabel", {
+		Name = "Title",
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 12, 0, 8),
+		Size = UDim2.new(1, -24, 0, 20),
+		Font = Enum.Font.GothamBold,
+		Text = tostring(name),
+		TextColor3 = COLORS.Text,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, holder)
+
+	local container = Create("Frame", {
+		Name = "Container",
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 12, 0, 34),
+		Size = UDim2.new(1, -24, 0, 0),
+	}, holder)
+
+	local layout = Create("UIListLayout", {
+		Padding = UDim.new(0, 7),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, container)
+
+	local object = setmetatable({
+		Type = "Groupbox",
+		Name = tostring(name),
+		Holder = holder,
+		BoxHolder = holder,
+		Container = container,
+		Title = title,
+		Elements = {},
+		DependencyBoxes = {},
+		Collapsed = false,
+		Visible = true,
+		Tab = self,
+	}, Groupbox)
+
+	layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		object:Resize()
+	end)
+
+	table.insert(self.Groupboxes[side], object)
+
+	object:Resize()
+
+	return object
+end
 
 function Tab:AddLeftGroupbox(name)
 	return self:_CreateGroupbox(name, "Left")
@@ -1453,87 +1368,6 @@ function Tab:AddRightTabbox(info)
 	return groupbox:AddTabbox(info)
 end
 
-function Tab:_CreateGroupbox(name, side)
-	local column = side == "Left" and self.LeftColumn or self.RightColumn
-
-	local boxHolder = Create("Frame", {
-		Name = tostring(name),
-		BackgroundColor3 = COLORS.Background,
-		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 0, 50)
-	}, column)
-
-	Corner(boxHolder, 6)
-	Stroke(boxHolder, COLORS.Stroke, 1)
-
-	local title = Create("TextLabel", {
-		Name = "Title",
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 12, 0, 8),
-		Size = UDim2.new(1, -24, 0, 20),
-		Font = Enum.Font.GothamSemibold,
-		Text = tostring(name),
-		TextColor3 = COLORS.Text,
-		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Left
-	}, boxHolder)
-
-	local container = Create("Frame", {
-		Name = "Container",
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 12, 0, 33),
-		Size = UDim2.new(1, -24, 0, 20)
-	}, boxHolder)
-
-	local layout = Create("UIListLayout", {
-		Padding = UDim.new(0, 7),
-		SortOrder = Enum.SortOrder.LayoutOrder
-	}, container)
-
-	local object = setmetatable({
-		Name = tostring(name),
-		Visible = true,
-		Collapsed = false,
-		PoppedOut = false,
-		PopOutEnabled = false,
-		BoxHolder = boxHolder,
-		Holder = boxHolder,
-		Container = container,
-		Tab = self,
-		Elements = {},
-		DependencyBoxes = {}
-	}, Groupbox)
-
-	function object:Resize()
-		local contentHeight = layout.AbsoluteContentSize.Y
-		local height = 43 + contentHeight + 10
-
-		if self.Collapsed then
-			height = 36
-		end
-
-		boxHolder.Size = UDim2.new(1, 0, 0, math.max(height, 43))
-	end
-
-	layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-		object:Resize()
-	end)
-
-	self.Groupboxes[side][#self.Groupboxes[side] + 1] = object
-
-	object:Resize()
-
-	return object
-end
-
-function Tab:SetVisible(visible)
-	self.Visible = visible
-
-	if self.Page then
-		self.Page.Visible = visible
-	end
-end
-
 local Window = {}
 Window.__index = Window
 
@@ -1545,83 +1379,81 @@ function Window:AddTab(name, icon)
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		CanvasSize = UDim2.new(),
+		ScrollBarThickness = 2,
 		ScrollBarImageColor3 = COLORS.Accent,
-		ScrollBarThickness = 3,
 		Size = UDim2.fromScale(1, 1),
-		Visible = false
+		Visible = false,
 	}, self.Content)
 
 	local columns = Create("Frame", {
+		Name = "Columns",
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, -2, 0, 0),
-		AutomaticSize = Enum.AutomaticSize.Y
+		Size = UDim2.new(1, -12, 0, 0),
+		Position = UDim2.new(0, 6, 0, 6),
+		AutomaticSize = Enum.AutomaticSize.Y,
 	}, page)
 
-	local layout = Create("UIListLayout", {
+	local columnLayout = Create("UIListLayout", {
 		FillDirection = Enum.FillDirection.Horizontal,
-		HorizontalAlignment = Enum.HorizontalAlignment.Left,
 		Padding = UDim.new(0, 8),
-		SortOrder = Enum.SortOrder.LayoutOrder
+		SortOrder = Enum.SortOrder.LayoutOrder,
 	}, columns)
 
-	local left = Create("ScrollingFrame", {
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	local left = Create("Frame", {
+		Name = "Left",
 		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		CanvasSize = UDim2.new(),
-		ScrollBarThickness = 0,
 		Size = UDim2.new(0.5, -4, 0, 0),
-		AutomaticSize = Enum.AutomaticSize.Y
+		AutomaticSize = Enum.AutomaticSize.Y,
 	}, columns)
 
-	local right = Create("ScrollingFrame", {
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	local right = Create("Frame", {
+		Name = "Right",
 		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		CanvasSize = UDim2.new(),
-		ScrollBarThickness = 0,
 		Size = UDim2.new(0.5, -4, 0, 0),
-		AutomaticSize = Enum.AutomaticSize.Y
+		AutomaticSize = Enum.AutomaticSize.Y,
 	}, columns)
 
 	Create("UIListLayout", {
 		Padding = UDim.new(0, 8),
-		SortOrder = Enum.SortOrder.LayoutOrder
+		SortOrder = Enum.SortOrder.LayoutOrder,
 	}, left)
 
 	Create("UIListLayout", {
 		Padding = UDim.new(0, 8),
-		SortOrder = Enum.SortOrder.LayoutOrder
+		SortOrder = Enum.SortOrder.LayoutOrder,
 	}, right)
 
-	local tabButton = Create("TextButton", {
+	local button = Create("TextButton", {
+		Name = tostring(name),
 		AutoButtonColor = false,
 		BackgroundColor3 = COLORS.Surface,
 		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 0, 38),
-		Font = Enum.Font.GothamMedium,
+		Size = UDim2.new(1, 0, 0, 36),
+		Font = Enum.Font.GothamSemibold,
 		Text = tostring(name),
 		TextColor3 = COLORS.SubText,
 		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Left
+		TextXAlignment = Enum.TextXAlignment.Left,
 	}, self.SidebarTabs)
 
-	Corner(tabButton, 5)
-	Padding(tabButton, 12, 8, 0, 0)
+	AddCorner(button, 5)
+	AddStroke(button)
+	AddPadding(button, 11, 8, 0, 0)
 
 	local tab = setmetatable({
+		Type = "Tab",
 		Name = tostring(name),
 		Icon = icon,
 		Page = page,
-		Button = tabButton,
+		Button = button,
 		Content = columns,
 		LeftColumn = left,
 		RightColumn = right,
 		Groupboxes = {
 			Left = {},
-			Right = {}
+			Right = {},
 		},
-		Window = self
+		Window = self,
 	}, Tab)
 
 	local function select()
@@ -1632,12 +1464,13 @@ function Window:AddTab(name, icon)
 		end
 
 		page.Visible = true
-		tabButton.BackgroundColor3 = COLORS.Surface2
-		tabButton.TextColor3 = COLORS.Text
+		button.BackgroundColor3 = COLORS.Surface2
+		button.TextColor3 = COLORS.Text
+
 		self.SelectedTab = tab
 	end
 
-	tabButton.MouseButton1Click:Connect(select)
+	button.MouseButton1Click:Connect(select)
 
 	self.Tabs[name] = tab
 
@@ -1648,21 +1481,28 @@ function Window:AddTab(name, icon)
 	return tab
 end
 
-function Window:SetVisible(visible)
-	self.Visible = visible
-	self.ScreenGui.Enabled = visible
-end
-
 function Window:Show()
-	self:SetVisible(true)
+	self.Visible = true
+
+	if self.ScreenGui then
+		self.ScreenGui.Enabled = true
+	end
 end
 
 function Window:Hide()
-	self:SetVisible(false)
+	self.Visible = false
+
+	if self.ScreenGui then
+		self.ScreenGui.Enabled = false
+	end
 end
 
 function Window:Toggle()
-	self:SetVisible(not self.Visible)
+	if self.Visible then
+		self:Hide()
+	else
+		self:Show()
+	end
 end
 
 function Window:Destroy()
@@ -1677,13 +1517,13 @@ function Library:CreateWindow(settings)
 	local playerGui = GetPlayerGui()
 
 	if not playerGui then
-		error("LocalPlayer PlayerGui bulunamadı.")
+		error("PlayerGui not found")
 	end
 
-	local existing = playerGui:FindFirstChild("CustomObsidianUI")
+	local old = playerGui:FindFirstChild("CustomObsidianUI")
 
-	if existing then
-		existing:Destroy()
+	if old then
+		old:Destroy()
 	end
 
 	local screenGui = Create("ScreenGui", {
@@ -1691,7 +1531,7 @@ function Library:CreateWindow(settings)
 		DisplayOrder = settings.DisplayOrder or 999,
 		IgnoreGuiInset = true,
 		ResetOnSpawn = false,
-		ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		ZIndexBehavior = Enum.ZIndexBehavior.Global,
 	}, playerGui)
 
 	local main = Create("Frame", {
@@ -1700,18 +1540,20 @@ function Library:CreateWindow(settings)
 		BackgroundColor3 = COLORS.Background,
 		BorderSizePixel = 0,
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = settings.Size or UDim2.fromOffset(720, 500)
+		Size = settings.Size or UDim2.fromOffset(720, 500),
 	}, screenGui)
 
-	Corner(main, 8)
-	Stroke(main, COLORS.Stroke, 1)
+	AddCorner(main, 8)
+	AddStroke(main)
 
 	local topbar = Create("Frame", {
 		Name = "Topbar",
 		BackgroundColor3 = COLORS.Background,
 		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 0, 46)
+		Size = UDim2.new(1, 0, 0, 46),
 	}, main)
+
+	AddStroke(topbar)
 
 	local title = Create("TextLabel", {
 		Name = "Title",
@@ -1722,7 +1564,7 @@ function Library:CreateWindow(settings)
 		Text = tostring(settings.Title or "Obsidian"),
 		TextColor3 = COLORS.Text,
 		TextSize = 15,
-		TextXAlignment = Enum.TextXAlignment.Left
+		TextXAlignment = Enum.TextXAlignment.Left,
 	}, topbar)
 
 	local footer = Create("TextLabel", {
@@ -1730,55 +1572,51 @@ function Library:CreateWindow(settings)
 		AnchorPoint = Vector2.new(1, 0),
 		BackgroundTransparency = 1,
 		Position = UDim2.new(1, -16, 0, 0),
-		Size = UDim2.new(0, 150, 0, 46),
-		Font = Enum.Font.Gotham,
+		Size = UDim2.fromOffset(160, 46),
+		Font = Enum.Font.GothamMedium,
 		Text = tostring(settings.Footer or ""),
 		TextColor3 = COLORS.SubText,
-		TextSize = 11,
-		TextXAlignment = Enum.TextXAlignment.Right
-	}, topbar)
-
-	local divider = Create("Frame", {
-		Name = "Divider",
-		BackgroundColor3 = COLORS.Stroke,
-		BorderSizePixel = 0,
-		Position = UDim2.new(0, 0, 0, 45),
-		Size = UDim2.new(1, 0, 0, 1)
+		TextSize = 10,
+		TextXAlignment = Enum.TextXAlignment.Right,
 	}, topbar)
 
 	local sidebar = Create("Frame", {
 		Name = "Sidebar",
-		BackgroundColor3 = Color3.fromRGB(9, 9, 9),
+		BackgroundColor3 = COLORS.Frame,
 		BorderSizePixel = 0,
 		Position = UDim2.new(0, 0, 0, 46),
-		Size = UDim2.new(0, 155, 1, -46)
+		Size = UDim2.new(0, 155, 1, -46),
 	}, main)
 
+	AddStroke(sidebar)
+
 	local sidebarTitle = Create("TextLabel", {
+		Name = "SidebarTitle",
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 12, 0, 13),
+		Position = UDim2.new(0, 12, 0, 12),
 		Size = UDim2.new(1, -24, 0, 18),
-		Font = Enum.Font.GothamSemibold,
+		Font = Enum.Font.GothamBold,
 		Text = "TABS",
 		TextColor3 = COLORS.SubText,
 		TextSize = 10,
-		TextXAlignment = Enum.TextXAlignment.Left
+		TextXAlignment = Enum.TextXAlignment.Left,
 	}, sidebar)
 
 	local sidebarTabs = Create("ScrollingFrame", {
+		Name = "Tabs",
 		Active = true,
 		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		CanvasSize = UDim2.new(),
-		Position = UDim2.new(0, 8, 0, 40),
+		Position = UDim2.new(0, 8, 0, 39),
 		ScrollBarThickness = 0,
-		Size = UDim2.new(1, -16, 1, -48)
+		Size = UDim2.new(1, -16, 1, -47),
 	}, sidebar)
 
 	Create("UIListLayout", {
-		Padding = UDim.new(0, 4),
-		SortOrder = Enum.SortOrder.LayoutOrder
+		Padding = UDim.new(0, 5),
+		SortOrder = Enum.SortOrder.LayoutOrder,
 	}, sidebarTabs)
 
 	local content = Create("Frame", {
@@ -1786,10 +1624,13 @@ function Library:CreateWindow(settings)
 		BackgroundColor3 = COLORS.Background,
 		BorderSizePixel = 0,
 		Position = UDim2.new(0, 155, 0, 46),
-		Size = UDim2.new(1, -155, 1, -46)
+		Size = UDim2.new(1, -155, 1, -46),
 	}, main)
 
+	AddStroke(content)
+
 	local window = setmetatable({
+		Type = "Window",
 		ScreenGui = screenGui,
 		Main = main,
 		Topbar = topbar,
@@ -1798,8 +1639,10 @@ function Library:CreateWindow(settings)
 		SidebarTabs = sidebarTabs,
 		Tabs = {},
 		SelectedTab = nil,
-		Visible = true
+		Visible = true,
 	}, Window)
+
+	Library.Window = window
 
 	local dragging = false
 	local dragStart
@@ -1810,12 +1653,12 @@ function Library:CreateWindow(settings)
 			dragging = true
 			dragStart = input.Position
 			startPosition = main.Position
+		end
+	end)
 
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					dragging = false
-				end
-			end)
+	topbar.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
 		end
 	end)
 
@@ -1833,7 +1676,7 @@ function Library:CreateWindow(settings)
 	end)
 
 	if settings.AutoShow == false then
-		window:SetVisible(false)
+		window:Hide()
 	end
 
 	return window
@@ -1848,18 +1691,19 @@ function Library:Notify(data)
 		return
 	end
 
-	local holder = playerGui:FindFirstChild("CustomObsidianNotifications")
+	local gui = playerGui:FindFirstChild("CustomObsidianNotifications")
 
-	if not holder then
-		holder = Create("ScreenGui", {
+	if not gui then
+		gui = Create("ScreenGui", {
 			Name = "CustomObsidianNotifications",
 			DisplayOrder = 10000,
 			IgnoreGuiInset = true,
-			ResetOnSpawn = false
+			ResetOnSpawn = false,
+			ZIndexBehavior = Enum.ZIndexBehavior.Global,
 		}, playerGui)
 	end
 
-	local container = holder:FindFirstChild("Container")
+	local container = gui:FindFirstChild("Container")
 
 	if not container then
 		container = Create("Frame", {
@@ -1867,54 +1711,57 @@ function Library:Notify(data)
 			AnchorPoint = Vector2.new(1, 1),
 			BackgroundTransparency = 1,
 			Position = UDim2.new(1, -18, 1, -18),
-			Size = UDim2.fromOffset(320, 500)
-		}, holder)
+			Size = UDim2.fromOffset(320, 500),
+		}, gui)
 
 		Create("UIListLayout", {
 			Padding = UDim.new(0, 7),
 			HorizontalAlignment = Enum.HorizontalAlignment.Right,
 			VerticalAlignment = Enum.VerticalAlignment.Bottom,
-			SortOrder = Enum.SortOrder.LayoutOrder
 		}, container)
 	end
 
 	local notification = Create("Frame", {
 		BackgroundColor3 = COLORS.Background,
 		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 0, 65)
+		Size = UDim2.new(1, 0, 0, 65),
 	}, container)
 
-	Corner(notification, 6)
-	Stroke(notification, COLORS.Stroke, 1)
+	AddCorner(notification, 6)
+	AddStroke(notification)
 
 	local notificationTitle = Create("TextLabel", {
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 12, 0, 8),
 		Size = UDim2.new(1, -24, 0, 18),
-		Font = Enum.Font.GothamSemibold,
+		Font = Enum.Font.GothamBold,
 		Text = tostring(data.Title or "Notification"),
 		TextColor3 = data.TitleColor or COLORS.Text,
 		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Left
+		TextXAlignment = Enum.TextXAlignment.Left,
 	}, notification)
 
 	local description = Create("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 12, 0, 28),
+		Position = UDim2.new(0, 12, 0, 29),
 		Size = UDim2.new(1, -24, 0, 28),
-		Font = Enum.Font.Gotham,
+		Font = Enum.Font.GothamMedium,
 		Text = tostring(data.Description or ""),
 		TextColor3 = data.DescriptionColor or COLORS.SubText,
 		TextSize = 11,
 		TextWrapped = true,
-		TextXAlignment = Enum.TextXAlignment.Left
+		TextXAlignment = Enum.TextXAlignment.Left,
 	}, notification)
 
 	task.delay(tonumber(data.Time) or 5, function()
 		if notification and notification.Parent then
-			TweenService:Create(notification, TweenInfo.new(0.2), {
-				BackgroundTransparency = 1
-			}):Play()
+			TweenService:Create(
+				notification,
+				TweenInfo.new(0.2),
+				{
+					BackgroundTransparency = 1,
+				}
+			):Play()
 
 			task.wait(0.2)
 
@@ -1930,64 +1777,26 @@ end
 function Library:Unload()
 	local playerGui = GetPlayerGui()
 
-	if not playerGui then
-		return
-	end
+	if playerGui then
+		local gui = playerGui:FindFirstChild("CustomObsidianUI")
 
-	local gui = playerGui:FindFirstChild("CustomObsidianUI")
-
-	if gui then
-		gui:Destroy()
-	end
-
-	local notifications = playerGui:FindFirstChild("CustomObsidianNotifications")
-
-	if notifications then
-		notifications:Destroy()
-	end
-
-	table.clear(self.Registry)
-	table.clear(self.Options)
-	table.clear(self.Toggles)
-	table.clear(self.Flags)
-end
-
-function Library:SetWatermark(text)
-	if self.Window and self.Window.Topbar then
-		local watermark = self.Window.Topbar:FindFirstChild("Watermark")
-
-		if not watermark then
-			watermark = Create("TextLabel", {
-				Name = "Watermark",
-				AnchorPoint = Vector2.new(1, 0),
-				BackgroundTransparency = 1,
-				Position = UDim2.new(1, -165, 0, 0),
-				Size = UDim2.fromOffset(150, 46),
-				Font = Enum.Font.Gotham,
-				TextColor3 = COLORS.SubText,
-				TextSize = 10,
-				TextXAlignment = Enum.TextXAlignment.Right
-			}, self.Window.Topbar)
+		if gui then
+			gui:Destroy()
 		end
 
-		watermark.Text = tostring(text or "")
-	end
-end
+		local notifications = playerGui:FindFirstChild("CustomObsidianNotifications")
 
-Library.SetKeybind = function(self, key, callback)
-	if typeof(key) ~= "EnumItem" then
-		return
+		if notifications then
+			notifications:Destroy()
+		end
 	end
 
-	return UserInputService.InputBegan:Connect(function(input, processed)
-		if processed then
-			return
-		end
+	table.clear(Library.Options)
+	table.clear(Library.Toggles)
+	table.clear(Library.Flags)
+	table.clear(Library.Registry)
 
-		if input.KeyCode == key then
-			SafeCallback(callback)
-		end
-	end)
+	Library.Window = nil
 end
 
 return Library
