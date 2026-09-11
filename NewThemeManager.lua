@@ -1,244 +1,162 @@
 local ThemeManager = {}
 
 ThemeManager.Library = nil
-ThemeManager.Themes = {}
 ThemeManager.CurrentTheme = "Default"
+ThemeManager.Themes = {}
 
-ThemeManager.DefaultTheme = {
-	Name = "Default",
-
+ThemeManager.Themes.Default = {
 	Background = Color3.fromRGB(8, 8, 8),
 	Frame = Color3.fromRGB(9, 9, 9),
 	Surface = Color3.fromRGB(11, 11, 11),
-	Surface2 = Color3.fromRGB(13, 13, 13),
-
+	Surface2 = Color3.fromRGB(14, 14, 14),
 	Stroke = Color3.fromRGB(18, 18, 18),
 
-	Text = Color3.fromRGB(238, 238, 238),
-	SubText = Color3.fromRGB(158, 158, 158),
-	Disabled = Color3.fromRGB(85, 85, 85),
+	Text = Color3.fromRGB(242, 242, 242),
+	SubText = Color3.fromRGB(155, 155, 155),
+	Disabled = Color3.fromRGB(78, 78, 78),
 
-	Accent = Color3.fromRGB(125, 85, 255),
-	AccentDark = Color3.fromRGB(85, 55, 185),
+	Accent = Color3.fromRGB(128, 92, 255),
+	AccentDark = Color3.fromRGB(91, 62, 190),
 
 	White = Color3.fromRGB(255, 255, 255),
 	Red = Color3.fromRGB(225, 75, 75),
 }
 
-local function CopyTable(source)
-	local result = {}
+local function IsColor3(value)
+	return typeof(value) == "Color3"
+end
 
-	for key, value in pairs(source) do
-		result[key] = value
+local function CopyTheme(theme)
+	local copy = {}
+
+	for key, value in pairs(theme) do
+		copy[key] = value
 	end
 
-	return result
+	return copy
 end
 
-local function IsGuiObject(object)
-	return object
-		and object:IsA("GuiObject")
-end
-
-local function SetColor(object, property, color)
-	if not object or not object.Parent then
+local function SetProperty(object, property, value)
+	if not object then
 		return
 	end
 
 	pcall(function()
-		object[property] = color
+		object[property] = value
 	end)
 end
 
-local function GetRole(object)
-	if not object or not object.Name then
-		return nil
-	end
-
-	local name = string.lower(object.Name)
-
-	if name == "window" then
-		return "Background"
-	end
-
-	if name == "content" then
-		return "Background"
-	end
-
-	if name == "sidebar" then
-		return "Frame"
-	end
-
-	if name == "topbar" then
-		return "Background"
-	end
-
-	if name == "sidebartitle" then
-		return "SubText"
-	end
-
-	if name == "title" then
-		return "Text"
-	end
-
-	if name == "footer" then
-		return "SubText"
-	end
-
-	if name == "label" then
-		return "Text"
-	end
-
-	if name == "text" then
-		return "Text"
-	end
-
-	if name == "value" then
-		return "SubText"
-	end
-
-	if name == "checkbox" then
-		return "Surface2"
-	end
-
-	if name == "check" then
-		return "White"
-	end
-
-	if name == "fill" then
-		return "Accent"
-	end
-
-	if name == "line" then
-		return "Stroke"
-	end
-
-	if name == "arrow" then
-		return "SubText"
-	end
-
-	if name == "options" then
-		return "Background"
-	end
-
-	if name == "dropdownpopup" then
-		return "Background"
-	end
-
-	if name == "button" then
-		return "Surface2"
-	end
-
-	if name == "holder" then
-		return "Surface"
-	end
-
-	return nil
-end
-
-local function ApplyToStroke(stroke, theme)
-	if not stroke:IsA("UIStroke") then
-		return
-	end
-
-	stroke.Color = theme.Stroke
-	stroke.Transparency = 0
-	stroke.Thickness = 1
-end
-
-local function ApplyToText(object, theme)
-	if not (
-		object:IsA("TextLabel")
-		or object:IsA("TextButton")
-		or object:IsA("TextBox")
-	) then
-		return
-	end
-
-	local role = GetRole(object)
-
-	if role == "Text" then
-		object.TextColor3 = theme.Text
-	elseif role == "SubText" then
-		object.TextColor3 = theme.SubText
-	elseif role == "Disabled" then
-		object.TextColor3 = theme.Disabled
-	elseif role == "White" then
-		object.TextColor3 = theme.White
-	end
-end
-
-local function ApplyToFrame(object, theme)
-	if not IsGuiObject(object) then
-		return
-	end
-
-	if object:IsA("TextLabel")
-		or object:IsA("TextButton")
-		or object:IsA("TextBox") then
-		return
-	end
-
-	local role = GetRole(object)
-
-	if role == "Background" then
-		object.BackgroundColor3 = theme.Background
-	elseif role == "Frame" then
-		object.BackgroundColor3 = theme.Frame
-	elseif role == "Surface" then
-		object.BackgroundColor3 = theme.Surface
-	elseif role == "Surface2" then
-		object.BackgroundColor3 = theme.Surface2
-	elseif role == "Accent" then
-		object.BackgroundColor3 = theme.Accent
-	elseif role == "Stroke" then
-		object.BackgroundColor3 = theme.Stroke
-	elseif role == "White" then
-		object.BackgroundColor3 = theme.White
-	end
-end
-
 local function ApplyObject(object, theme)
-	if not object or not object.Parent then
+	if not object or not object:IsA("GuiObject") then
 		return
 	end
 
-	if object:IsA("UIStroke") then
-		ApplyToStroke(object, theme)
-		return
-	end
+	local name = object.Name
 
-	if object:IsA("TextLabel")
-		or object:IsA("TextButton")
-		or object:IsA("TextBox") then
+	if name == "Window" then
+		SetProperty(object, "BackgroundColor3", theme.Background)
 
-		ApplyToText(object, theme)
-		return
-	end
+	elseif name == "Topbar" then
+		SetProperty(object, "BackgroundColor3", theme.Background)
 
-	ApplyToFrame(object, theme)
-end
+	elseif name == "Sidebar" then
+		SetProperty(object, "BackgroundColor3", theme.Frame)
 
-local function ApplyAccentObjects(root, theme)
-	for _, object in ipairs(root:GetDescendants()) do
-		if not object.Parent then
-			continue
+	elseif name == "Content" then
+		SetProperty(object, "BackgroundColor3", theme.Background)
+
+	elseif name == "Title" then
+		SetProperty(object, "TextColor3", theme.Text)
+
+	elseif name == "Footer" then
+		SetProperty(object, "TextColor3", theme.SubText)
+
+	elseif name == "Accent" then
+		SetProperty(object, "BackgroundColor3", theme.Accent)
+
+	elseif name == "Separator" then
+		SetProperty(object, "BackgroundColor3", theme.Stroke)
+
+	elseif name == "Label" then
+		if object:IsA("TextLabel") then
+			if object.TextColor3 ~= Color3.fromRGB(255, 255, 255) then
+				SetProperty(object, "TextColor3", theme.Text)
+			end
 		end
 
-		local name = string.lower(object.Name)
+	elseif name == "Value" then
+		if object:IsA("TextLabel") then
+			SetProperty(object, "TextColor3", theme.SubText)
+		end
 
-		if name == "fill" then
-			SetColor(object, "BackgroundColor3", theme.Accent)
-		elseif name == "checkbox" then
-			if object:IsA("Frame") then
-				local checked = object:FindFirstChild("Check")
+	elseif name == "Text" then
+		if object:IsA("TextLabel") then
+			SetProperty(object, "TextColor3", theme.SubText)
+		end
 
-				if checked and checked.Visible then
-					object.BackgroundColor3 = theme.Accent
-				else
-					object.BackgroundColor3 = theme.Surface2
-				end
+	elseif name == "Button" then
+		if object:IsA("TextButton") then
+			SetProperty(object, "BackgroundColor3", theme.Surface2)
+
+			if object.TextColor3 ~= Color3.fromRGB(225, 75, 75) then
+				SetProperty(object, "TextColor3", theme.Text)
 			end
+		elseif object:IsA("TextLabel") then
+			SetProperty(object, "TextColor3", theme.Text)
+		end
+
+	elseif name == "Holder" then
+		SetProperty(object, "BackgroundColor3", theme.Surface)
+
+	elseif name == "Checkbox" then
+		SetProperty(object, "BackgroundColor3", theme.Surface2)
+
+	elseif name == "Bar" then
+		SetProperty(object, "BackgroundColor3", theme.Surface2)
+
+	elseif name == "Fill" then
+		SetProperty(object, "BackgroundColor3", theme.Accent)
+
+	elseif name == "Popup" or name == "DropdownPopup" then
+		SetProperty(object, "BackgroundColor3", theme.Background)
+
+	elseif name == "Options" then
+		SetProperty(object, "ScrollBarImageColor3", theme.Accent)
+
+	elseif name == "Check" then
+		SetProperty(object, "TextColor3", theme.White)
+
+	elseif name == "Tabs" then
+		SetProperty(object, "BackgroundColor3", theme.Surface)
+
+	elseif name == "General"
+		or name == "Extra"
+		or name == "Themes"
+		or name == "Actions"
+		or name == "Configuration"
+		or name == "Controls"
+		or name == "Values"
+	then
+		SetProperty(object, "BackgroundColor3", theme.Background)
+	end
+
+	if object:IsA("TextButton") then
+		if object.Name ~= "Button" and object.Name ~= "Holder" then
+			if object.TextColor3 ~= Color3.fromRGB(225, 75, 75) then
+				SetProperty(object, "TextColor3", theme.SubText)
+			end
+		end
+	end
+
+	if object:IsA("TextBox") then
+		SetProperty(object, "BackgroundColor3", theme.Surface2)
+		SetProperty(object, "TextColor3", theme.Text)
+		SetProperty(object, "PlaceholderColor3", theme.Disabled)
+	end
+
+	for _, child in ipairs(object:GetChildren()) do
+		if child:IsA("UIStroke") then
+			child.Color = theme.Stroke
 		end
 	end
 end
@@ -246,43 +164,40 @@ end
 function ThemeManager:Init(library)
 	self.Library = library
 
-	if not self.Themes.Default then
-		self.Themes.Default = CopyTable(self.DefaultTheme)
-	end
+	local defaultTheme = self:GetTheme("Default")
 
-	self.CurrentTheme = "Default"
+	if defaultTheme then
+		self:ApplyTheme("Default")
+	end
 
 	return self
 end
 
-function ThemeManager:Register(name, theme)
-	if not name or typeof(theme) ~= "table" then
-		return false, "Invalid theme"
-	end
+function ThemeManager:RegisterTheme(name, theme)
+	assert(typeof(name) == "string", "Theme name must be a string")
+	assert(typeof(theme) == "table", "Theme must be a table")
 
-	local newTheme = CopyTable(self.DefaultTheme)
+	local base = self:GetTheme("Default") or {}
+
+	local finalTheme = CopyTheme(base)
 
 	for key, value in pairs(theme) do
-		newTheme[key] = value
+		if IsColor3(value) then
+			finalTheme[key] = value
+		end
 	end
 
-	newTheme.Name = tostring(name)
+	self.Themes[name] = finalTheme
 
-	self.Themes[tostring(name)] = newTheme
+	return finalTheme
+end
 
-	return true
+function ThemeManager:AddTheme(name, theme)
+	return self:RegisterTheme(name, theme)
 end
 
 function ThemeManager:GetTheme(name)
-	name = name or self.CurrentTheme
-
-	local theme = self.Themes[name]
-
-	if not theme then
-		return nil
-	end
-
-	return CopyTable(theme)
+	return self.Themes[name]
 end
 
 function ThemeManager:GetThemes()
@@ -297,100 +212,171 @@ function ThemeManager:GetThemes()
 	return result
 end
 
-function ThemeManager:ApplyTheme(name)
-	if not self.Library then
-		return false, "ThemeManager has not been initialized"
-	end
+function ThemeManager:GetCurrentTheme()
+	return self.CurrentTheme
+end
 
-	name = tostring(name or "Default")
+function ThemeManager:GetCurrentThemeData()
+	return self.Themes[self.CurrentTheme]
+end
 
-	local theme = self.Themes[name]
+function ThemeManager:SetColor(name, color)
+	local theme = self:GetTheme(self.CurrentTheme)
 
 	if not theme then
-		return false, "Theme not found: " .. name
+		return false, "Current theme does not exist"
 	end
 
-	local window = self.Library.Window
-
-	if not window then
-		return false, "Library.Window not found"
+	if not IsColor3(color) then
+		return false, "Color must be Color3"
 	end
 
-	local screenGui = window.ScreenGui
+	theme[name] = color
 
-	if not screenGui then
-		return false, "ScreenGui not found"
-	end
-
-	for _, object in ipairs(screenGui:GetDescendants()) do
-		ApplyObject(object, theme)
-	end
-
-	ApplyAccentObjects(screenGui, theme)
-
-	self.CurrentTheme = name
-
-	self.Library.Theme = theme
+	self:Refresh()
 
 	return true
 end
 
-function ThemeManager:Reset()
-	return self:ApplyTheme("Default")
-end
+function ThemeManager:GetColor(name)
+	local theme = self:GetTheme(self.CurrentTheme)
 
-function ThemeManager:BuildThemeSection(groupbox)
-	if not groupbox then
+	if not theme then
 		return nil
 	end
 
-	groupbox:AddLabel({
-		Text = "Theme",
-		DoesWrap = false,
-	})
+	return theme[name]
+end
 
-	local themes = self:GetThemes()
+function ThemeManager:ApplyTheme(name)
+	local theme = self:GetTheme(name)
 
-	local defaultValue = self.CurrentTheme
-
-	if #themes == 0 then
-		themes = {
-			"Default"
-		}
+	if not theme then
+		return false, "Theme not found: " .. tostring(name)
 	end
 
-	groupbox:AddDropdown("ThemeManager_Theme", {
-		Text = "Theme",
-		Values = themes,
-		Default = defaultValue,
+	if not self.Library then
+		return false, "ThemeManager is not initialized"
+	end
 
-		Callback = function(value)
-			if value then
-				self:ApplyTheme(value)
+	self.CurrentTheme = name
+
+	local library = self.Library
+
+	if library.Window and library.Window.ScreenGui then
+		for _, object in ipairs(library.Window.ScreenGui:GetDescendants()) do
+			ApplyObject(object, theme)
+		end
+
+		ApplyObject(library.Window.ScreenGui, theme)
+	end
+
+	if library.Window and library.Window.Main then
+		ApplyObject(library.Window.Main, theme)
+	end
+
+	if library.Window and library.Window.Topbar then
+		ApplyObject(library.Window.Topbar, theme)
+	end
+
+	if library.Window and library.Window.Sidebar then
+		ApplyObject(library.Window.Sidebar, theme)
+	end
+
+	if library.Window and library.Window.Content then
+		ApplyObject(library.Window.Content, theme)
+	end
+
+	for _, object in pairs(library.Options or {}) do
+		if typeof(object) == "table" then
+			if object.Button then
+				ApplyObject(object.Button, theme)
 			end
-		end,
-	})
 
-	groupbox:AddButton({
-		Text = "Reset Theme",
+			if object.Label then
+				ApplyObject(object.Label, theme)
+			end
 
-		Func = function()
-			self:Reset()
-		end,
-	})
+			if object.TextBox then
+				ApplyObject(object.TextBox, theme)
+			end
 
-	return groupbox
+			if object.Checkbox then
+				ApplyObject(object.Checkbox, theme)
+			end
+
+			if object.Fill then
+				ApplyObject(object.Fill, theme)
+			end
+
+			if object.Bar then
+				ApplyObject(object.Bar, theme)
+			end
+		end
+	end
+
+	self:RefreshStrokes()
+
+	return true
 end
 
-function ThemeManager:CreateTheme(name, theme)
-	return self:Register(name, theme)
+function ThemeManager:Refresh()
+	return self:ApplyTheme(self.CurrentTheme)
 end
 
-function ThemeManager:RemoveTheme(name)
-	name = tostring(name)
+function ThemeManager:RefreshStrokes()
+	if not self.Library then
+		return
+	end
 
+	local theme = self:GetTheme(self.CurrentTheme)
+
+	if not theme then
+		return
+	end
+
+	local gui
+
+	if self.Library.Window then
+		gui = self.Library.Window.ScreenGui
+	end
+
+	if not gui then
+		return
+	end
+
+	for _, object in ipairs(gui:GetDescendants()) do
+		if object:IsA("UIStroke") then
+			object.Color = theme.Stroke
+			object.Thickness = 1
+			object.Transparency = 0
+		end
+	end
+end
+
+function ThemeManager:SaveTheme(name)
+	local theme = self:GetTheme(name or self.CurrentTheme)
+
+	if not theme then
+		return nil
+	end
+
+	return CopyTheme(theme)
+end
+
+function ThemeManager:LoadTheme(name, data)
+	if typeof(data) ~= "table" then
+		return false, "Theme data must be a table"
+	end
+
+	self:RegisterTheme(name, data)
+
+	return self:ApplyTheme(name)
+end
+
+function ThemeManager:DeleteTheme(name)
 	if name == "Default" then
-		return false, "Default theme cannot be removed"
+		return false, "Default theme cannot be deleted"
 	end
 
 	if not self.Themes[name] then
@@ -400,40 +386,59 @@ function ThemeManager:RemoveTheme(name)
 	self.Themes[name] = nil
 
 	if self.CurrentTheme == name then
-		self:Reset()
+		self:ApplyTheme("Default")
 	end
 
 	return true
 end
 
-function ThemeManager:SetThemeColor(name, property, value)
-	local theme = self.Themes[name]
-
-	if not theme then
-		return false, "Theme not found"
+function ThemeManager:BuildThemeSection(groupbox)
+	if not groupbox then
+		return false, "Groupbox is required"
 	end
 
-	if theme[property] == nil then
-		return false, "Theme color not found: " .. tostring(property)
-	end
+	groupbox:AddLabel({
+		Text = "Theme",
+		DoesWrap = false,
+	})
 
-	if typeof(value) ~= "Color3" then
-		return false, "Value must be Color3"
-	end
+	local values = self:GetThemes()
 
-	theme[property] = value
+	groupbox:AddDropdown("ThemeManager_CurrentTheme", {
+		Text = "Current Theme",
+		Values = values,
+		Default = self.CurrentTheme,
 
-	if self.CurrentTheme == name then
-		self:ApplyTheme(name)
-	end
+		Callback = function(value)
+			self:ApplyTheme(value)
+		end,
+	})
+
+	groupbox:AddButton({
+		Text = "Refresh Theme",
+
+		Func = function()
+			self:Refresh()
+		end,
+	})
+
+	groupbox:AddButton({
+		Text = "Refresh Strokes",
+
+		Func = function()
+			self:RefreshStrokes()
+		end,
+	})
 
 	return true
 end
 
-function ThemeManager:GetCurrentTheme()
-	return self.CurrentTheme
+function ThemeManager:BuildSection(groupbox)
+	return self:BuildThemeSection(groupbox)
 end
 
-ThemeManager:Register("Default", ThemeManager.DefaultTheme)
+function ThemeManager:Reset()
+	return self:ApplyTheme("Default")
+end
 
 return ThemeManager
