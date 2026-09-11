@@ -1,334 +1,456 @@
---// KamUI ThemeManager
---// Obsidian ThemeManager compatibility layer
---// Keeps theme API while protecting the visual skin.
+local ThemeManager = {
+Library = nil,
+Folder = "Library",
+ThemeFolder = "Themes",
+Themes = {},
+Initialized = false,
+}
 
 local HttpService = game:GetService("HttpService")
 
-local SOURCE =
-    "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/addons/ThemeManager.lua"
+local DEFAULT_THEME = {
+BackgroundColor = Color3.fromRGB(8, 8, 8),
+StrokeColor = Color3.fromRGB(18, 18, 18),
+TextColor = Color3.fromRGB(235, 235, 235),
+SubTextColor = Color3.fromRGB(155, 155, 155),
+AccentColor = Color3.fromRGB(120, 170, 255),
+AccentColorDark = Color3.fromRGB(75, 115, 190),
+ControlColor = Color3.fromRGB(14, 14, 14),
+HoverColor = Color3.fromRGB(24, 24, 24),
+ActiveColor = Color3.fromRGB(30, 30, 30),
+BorderColor = Color3.fromRGB(18, 18, 18),
+TabColor = Color3.fromRGB(11, 11, 11),
+TabActiveColor = Color3.fromRGB(20, 20, 20),
+}
 
-local source = game:HttpGet(
-    SOURCE .. "?kamui=" .. tostring(os.clock())
-)
-
-local loader, err = loadstring(source)
-
-if not loader then
-    error("[KamUI ThemeManager] Compile error:\n" .. tostring(err))
+local function DeepCopy(value)
+if type(value) ~= "table" then
+return value
 end
 
-local ThemeManager = loader()
+local result = {}
 
-if type(ThemeManager) ~= "table" then
-    error("[KamUI ThemeManager] Failed to load.")
+for key, item in pairs(value) do
+	result[key] = DeepCopy(item)
 end
 
----------------------------------------------------------------------
--- ORIGINAL FUNCTIONS
----------------------------------------------------------------------
+return result
 
-local OriginalSetLibrary =
-    ThemeManager.SetLibrary
-
-local OriginalSaveCustomTheme =
-    ThemeManager.SaveCustomTheme
-
-local OriginalApplyTheme =
-    ThemeManager.ApplyTheme
-
-local OriginalThemeUpdate =
-    ThemeManager.ThemeUpdate
-
----------------------------------------------------------------------
--- SET LIBRARY
----------------------------------------------------------------------
-
-ThemeManager.SetLibrary = function(self, Library)
-
-    OriginalSetLibrary(self, Library)
-
-    -- Mark the Library as being controlled by KamUI.
-    Library.KamUISkin = true
-
-    -- Values that ThemeManager is allowed to control.
-    Library.KamUIThemeIndexes = {
-        "FontColor",
-        "MainColor",
-        "AccentColor",
-        "BackgroundColor",
-        "OutlineColor"
-    }
 
 end
 
----------------------------------------------------------------------
--- SAVE CUSTOM THEME
----------------------------------------------------------------------
-
-ThemeManager.SaveCustomTheme = function(self, ThemeName)
-
-    local Library = self.Library
-
-    if not Library then
-        return false, "Library is not set"
-    end
-
-    if type(ThemeName) ~= "string"
-        or ThemeName:gsub("%s+", "") == "" then
-
-        return false, "Invalid theme name provided"
-    end
-
-    if string.lower(ThemeName) == "default" then
-        return false, "Invalid theme name provided"
-    end
-
-    local folder =
-        self.Folder .. "/themes"
-
-    if not isfolder(folder) then
-        makefolder(self.Folder)
-        makefolder(folder)
-    end
-
-    local path =
-        folder .. "/" .. ThemeName .. ".json"
-
-    -----------------------------------------------------------------
-    -- ONLY THEME VALUES ARE SAVED
-    -----------------------------------------------------------------
-
-    local Data = {}
-
-    local Scheme = Library.Scheme
-
-    local ThemeIndexes = {
-        "FontColor",
-        "MainColor",
-        "AccentColor",
-        "BackgroundColor",
-        "OutlineColor"
-    }
-
-    for _, Name in ipairs(ThemeIndexes) do
-
-        local Color = Scheme[Name]
-
-        if typeof(Color) == "Color3" then
-            Data[Name] = Color:ToHex()
-        end
-    end
-
-    -----------------------------------------------------------------
-    -- FONT
-    -----------------------------------------------------------------
-
-    local FontValue
-
-    if Library.Options
-        and Library.Options.FontFace then
-
-        FontValue =
-            Library.Options.FontFace.Value
-    end
-
-    if type(FontValue) == "string" then
-        Data.FontFace = FontValue
-    else
-        Data.FontFace = "Gotham"
-    end
-
-    -----------------------------------------------------------------
-    -- BACKGROUND IMAGE
-    -----------------------------------------------------------------
-
-    if Library.Options
-        and Library.Options.BackgroundImage then
-
-        local Value =
-            Library.Options.BackgroundImage.Value
-
-        if type(Value) == "string" then
-            Data.BackgroundImage = Value
-        else
-            Data.BackgroundImage = ""
-        end
-
-    else
-
-        Data.BackgroundImage = ""
-
-    end
-
-    -----------------------------------------------------------------
-    -- WRITE
-    -----------------------------------------------------------------
-
-    local success, encoded =
-        pcall(
-            HttpService.JSONEncode,
-            HttpService,
-            Data
-        )
-
-    if not success then
-        return false, "Failed to encode theme"
-    end
-
-    local writeSuccess, writeError =
-        pcall(
-            writefile,
-            path,
-            encoded
-        )
-
-    if not writeSuccess then
-        return false,
-            "Failed to write theme: "
-            .. tostring(writeError)
-    end
-
-    return true
+local function Serialize(value)
+if typeof(value) == "Color3" then
+return {
+__type = "Color3",
+R = value.R,
+G = value.G,
+B = value.B,
+}
 end
 
----------------------------------------------------------------------
--- APPLY THEME
----------------------------------------------------------------------
+if type(value) == "table" then
+	local result = {}
 
-ThemeManager.ApplyTheme = function(self, ThemeName)
+	for key, item in pairs(value) do
+		result[tostring(key)] = Serialize(item)
+	end
 
-    local result, err =
-        OriginalApplyTheme(
-            self,
-            ThemeName
-        )
-
-    if not result then
-        return result, err
-    end
-
-    -----------------------------------------------------------------
-    -- REAPPLY KAMUI VISUAL LAYER
-    -----------------------------------------------------------------
-
-    task.defer(function()
-
-        task.wait(0.08)
-
-        local Library = self.Library
-
-        if not Library then
-            return
-        end
-
-        -------------------------------------------------------------
-        -- DO NOT LET THEME CHANGE LAYOUT
-        -------------------------------------------------------------
-
-        Library.CornerRadius = 14
-
-        Library.KamUISkin = true
-
-        -------------------------------------------------------------
-        -- REAPPLY VISUAL CALLBACK
-        -------------------------------------------------------------
-
-        if Library.KamUIRefresh then
-
-            pcall(function()
-                Library:KamUIRefresh()
-            end)
-
-        end
-
-    end)
-
-    return true
+	return result
 end
 
----------------------------------------------------------------------
--- THEME UPDATE
----------------------------------------------------------------------
+return value
 
-ThemeManager.ThemeUpdate = function(self)
-
-    local Library = self.Library
-
-    if not Library then
-        return
-    end
-
-    -----------------------------------------------------------------
-    -- ONLY UPDATE THEME COLORS
-    -----------------------------------------------------------------
-
-    local Indexes = {
-        "FontColor",
-        "MainColor",
-        "AccentColor",
-        "BackgroundColor",
-        "OutlineColor"
-    }
-
-    for _, Name in ipairs(Indexes) do
-
-        local Option =
-            Library.Options
-            and Library.Options[Name]
-
-        if Option then
-
-            local Value =
-                Option.Value
-
-            if typeof(Value) == "Color3" then
-                Library.Scheme[Name] = Value
-            end
-
-        end
-    end
-
-    -----------------------------------------------------------------
-    -- UPDATE REGISTRY
-    -----------------------------------------------------------------
-
-    pcall(function()
-        Library:UpdateColorsUsingRegistry()
-    end)
-
-    -----------------------------------------------------------------
-    -- RESTORE VISUAL SKIN
-    -----------------------------------------------------------------
-
-    task.defer(function()
-
-        task.wait(0.05)
-
-        if Library.KamUIRefresh then
-
-            pcall(function()
-                Library:KamUIRefresh()
-            end)
-
-        end
-
-    end)
 
 end
 
----------------------------------------------------------------------
--- PROTECTED FONT
----------------------------------------------------------------------
+local function Deserialize(value)
+if type(value) ~= "table" then
+return value
+end
 
-local OriginalSetFont =
-    ThemeManager.Library
-    and ThemeManager.Library.SetFont
+if value.__type == "Color3" then
+	return Color3.new(
+		tonumber(value.R) or 0,
+		tonumber(value.G) or 0,
+		tonumber(value.B) or 0
+	)
+end
 
----------------------------------------------------------------------
--- MARKER
----------------------------------------------------------------------
+local result = {}
 
-ThemeManager.KamUI = true
-ThemeManager.KamUIVersion = "2.0.0"
+for key, item in pairs(value) do
+	result[key] = Deserialize(item)
+end
+
+return result
+
+
+end
+
+local function EnsureFolder(path)
+if isfolder and makefolder and not isfolder(path) then
+makefolder(path)
+end
+end
+
+local function GetThemePath(self, name)
+return self.Folder .. "/" .. self.ThemeFolder .. "/" .. tostring(name) .. ".json"
+end
+
+function ThemeManager:Init(Library, options)
+self.Library = Library
+options = options or {}
+
+self.Folder = options.Folder or self.Folder
+self.ThemeFolder = options.ThemeFolder or self.ThemeFolder
+
+self.Themes = {
+	Default = DeepCopy(DEFAULT_THEME),
+}
+
+EnsureFolder(self.Folder)
+EnsureFolder(self.Folder .. "/" .. self.ThemeFolder)
+
+self.Initialized = true
+
+return self
+
+
+end
+
+function ThemeManager:GetDefaultTheme()
+return DeepCopy(DEFAULT_THEME)
+end
+
+function ThemeManager:GetTheme(name)
+name = tostring(name or "Default")
+
+if self.Themes[name] then
+	return DeepCopy(self.Themes[name])
+end
+
+return nil
+
+
+end
+
+function ThemeManager:Register(name, theme)
+if type(name) ~= "string" or name == "" then
+return false, "Invalid theme name."
+end
+
+if type(theme) ~= "table" then
+	return false, "Invalid theme."
+end
+
+self.Themes[name] = DeepCopy(theme)
+
+return true
+
+
+end
+
+function ThemeManager:SaveTheme(name, theme)
+if not writefile then
+return false, "writefile is not available."
+end
+
+name = tostring(name or "Default")
+
+theme = theme or self.Themes[name]
+
+if not theme then
+	return false, "Theme does not exist."
+end
+
+EnsureFolder(self.Folder)
+EnsureFolder(self.Folder .. "/" .. self.ThemeFolder)
+
+local encodedSuccess, encoded = pcall(function()
+	return HttpService:JSONEncode(Serialize(theme))
+end)
+
+if not encodedSuccess then
+	return false, tostring(encoded)
+end
+
+local success, errorMessage = pcall(function()
+	writefile(GetThemePath(self, name), encoded)
+end)
+
+if not success then
+	return false, tostring(errorMessage)
+end
+
+return true
+
+
+end
+
+function ThemeManager:LoadTheme(name)
+if not isfile or not readfile then
+return false, "File APIs are not available."
+end
+
+name = tostring(name or "Default")
+
+local path = GetThemePath(self, name)
+
+if not isfile(path) then
+	return false, "Theme does not exist."
+end
+
+local success, content = pcall(function()
+	return readfile(path)
+end)
+
+if not success then
+	return false, tostring(content)
+end
+
+local decodeSuccess, data = pcall(function()
+	return HttpService:JSONDecode(content)
+end)
+
+if not decodeSuccess or type(data) ~= "table" then
+	return false, "Invalid theme file."
+end
+
+self.Themes[name] = Deserialize(data)
+
+return true, self.Themes[name]
+
+
+end
+
+function ThemeManager:DeleteTheme(name)
+if not isfile or not delfile then
+return false, "File APIs are not available."
+end
+
+name = tostring(name or "Default")
+
+if name == "Default" then
+	return false, "Default theme cannot be deleted."
+end
+
+local path = GetThemePath(self, name)
+
+if not isfile(path) then
+	return false, "Theme does not exist."
+end
+
+local success, errorMessage = pcall(function()
+	delfile(path)
+end)
+
+if not success then
+	return false, tostring(errorMessage)
+end
+
+self.Themes[name] = nil
+
+return true
+
+
+end
+
+function ThemeManager:GetThemes()
+local themes = {}
+
+for name in pairs(self.Themes) do
+	table.insert(themes, name)
+end
+
+if listfiles then
+	local path = self.Folder .. "/" .. self.ThemeFolder
+
+	if isfolder and isfolder(path) then
+		for _, file in ipairs(listfiles(path)) do
+			local name = file:match("([^/\\]+)%.json$")
+
+			if name and not table.find(themes, name) then
+				table.insert(themes, name)
+			end
+		end
+	end
+end
+
+table.sort(themes)
+
+return themes
+
+
+end
+
+function ThemeManager:ApplyTheme(name)
+name = tostring(name or "Default")
+
+local theme = self.Themes[name]
+
+if not theme and isfile and isfile(GetThemePath(self, name)) then
+	local success = self:LoadTheme(name)
+
+	if not success then
+		return false, "Failed to load theme."
+	end
+
+	theme = self.Themes[name]
+end
+
+if not theme then
+	return false, "Theme does not exist."
+end
+
+if not self.Library then
+	return false, "Library is not initialized."
+end
+
+if type(self.Library.SetTheme) == "function" then
+	local success, errorMessage = pcall(function()
+		self.Library:SetTheme(theme)
+	end)
+
+	if not success then
+		return false, tostring(errorMessage)
+	end
+elseif type(self.Library.ApplyTheme) == "function" then
+	local success, errorMessage = pcall(function()
+		self.Library:ApplyTheme(theme)
+	end)
+
+	if not success then
+		return false, tostring(errorMessage)
+	end
+else
+	self.Library.Theme = DeepCopy(theme)
+
+	if type(self.Library.RefreshTheme) == "function" then
+		pcall(function()
+			self.Library:RefreshTheme()
+		end)
+	end
+end
+
+return true
+
+
+end
+
+function ThemeManager:BuildThemeSection(groupbox)
+if not groupbox then
+return nil
+end
+
+local themeNames = self:GetThemes()
+local currentTheme = "Default"
+
+groupbox:AddDropdown("ThemeSelector", {
+	Text = "Theme",
+	Values = themeNames,
+	Default = "Default",
+	Callback = function(value)
+		currentTheme = tostring(value or "Default")
+	end,
+})
+
+groupbox:AddButton({
+	Text = "Apply Theme",
+	Func = function()
+		local success, errorMessage = self:ApplyTheme(currentTheme)
+
+		if self.Library and self.Library.Notify then
+			self.Library:Notify({
+				Title = success and "Theme Applied" or "Theme Error",
+				Description = success
+					and ("Applied: " .. currentTheme)
+					or tostring(errorMessage),
+				Time = 3,
+			})
+		end
+	end,
+})
+
+groupbox:AddButton({
+	Text = "Save Theme",
+	Func = function()
+		local theme = self.Themes[currentTheme]
+
+		if not theme then
+			if self.Library and self.Library.Notify then
+				self.Library:Notify({
+					Title = "Theme Error",
+					Description = "Theme does not exist.",
+					Time = 3,
+				})
+			end
+
+			return
+		end
+
+		local success, errorMessage = self:SaveTheme(currentTheme, theme)
+
+		if self.Library and self.Library.Notify then
+			self.Library:Notify({
+				Title = success and "Theme Saved" or "Theme Error",
+				Description = success
+					and ("Saved: " .. currentTheme)
+					or tostring(errorMessage),
+				Time = 3,
+			})
+		end
+	end,
+})
+
+groupbox:AddButton({
+	Text = "Load Theme",
+	Func = function()
+		local success, errorMessage = self:LoadTheme(currentTheme)
+
+		if success then
+			self:ApplyTheme(currentTheme)
+		end
+
+		if self.Library and self.Library.Notify then
+			self.Library:Notify({
+				Title = success and "Theme Loaded" or "Theme Error",
+				Description = success
+					and ("Loaded: " .. currentTheme)
+					or tostring(errorMessage),
+				Time = 3,
+			})
+		end
+	end,
+})
+
+groupbox:AddDivider()
+
+groupbox:AddLabel({
+	Text = "Background: 8, 8, 8",
+})
+
+groupbox:AddLabel({
+	Text = "Stroke: 18, 18, 18",
+})
+
+return groupbox
+
+
+end
+
+function ThemeManager:SetFolder(folder, themeFolder)
+self.Folder = tostring(folder or "Library")
+self.ThemeFolder = tostring(themeFolder or "Themes")
+
+EnsureFolder(self.Folder)
+EnsureFolder(self.Folder .. "/" .. self.ThemeFolder)
+
+
+end
+
+function ThemeManager:GetPath(name)
+return GetThemePath(self, name)
+end
 
 return ThemeManager
