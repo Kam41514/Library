@@ -1,414 +1,435 @@
+local ConfigManager = {
+Library = nil,
+Folder = "Library",
+ConfigFolder = "Configs",
+Initialized = false,
+}
+
 local HttpService = game:GetService("HttpService")
 
-local ConfigManager = {}
-ConfigManager.__index = ConfigManager
-
-ConfigManager.Folder = "MoonHubUI"
-ConfigManager.File = "config.json"
-
-local function getOptions()
-	local ok, Library = pcall(function()
-		return require(script.Parent.Library)
-	end)
-
-	if not ok or not Library then
-		return {}
-	end
-
-	return Library.Options or {}
+local function EnsureFolder(path)
+if not isfolder(path) then
+makefolder(path)
+end
 end
 
-local function serialize(value)
-	local valueType = typeof(value)
-
-	if valueType == "Color3" then
-		return {
-			__type = "Color3",
-			R = value.R,
-			G = value.G,
-			B = value.B
-		}
-	elseif valueType == "EnumItem" then
-		return {
-			__type = "EnumItem",
-			EnumType = tostring(value.EnumType),
-			Name = value.Name
-		}
-	elseif valueType == "table" then
-		local result = {}
-
-		for key, item in pairs(value) do
-			if typeof(key) == "string" or typeof(key) == "number" then
-				result[key] = serialize(item)
-			end
-		end
-
-		return result
-	elseif valueType == "string"
-		or valueType == "number"
-		or valueType == "boolean"
-		or valueType == "nil" then
-		return value
-	end
-
-	return nil
+local function DeepCopy(value)
+if type(value) ~= "table" then
+return value
 end
 
-local function deserialize(value)
-	if typeof(value) ~= "table" then
-		return value
-	end
+local result = {}
 
-	if value.__type == "Color3" then
-		return Color3.new(
-			tonumber(value.R) or 1,
-			tonumber(value.G) or 1,
-			tonumber(value.B) or 1
-		)
-	end
+for key, item in pairs(value) do
+	result[key] = DeepCopy(item)
+end
 
-	if value.__type == "EnumItem" then
-		local enumType = tostring(value.EnumType):match("Enum%.(.+)")
+return result
 
-		if enumType and Enum[enumType] and Enum[enumType][value.Name] then
-			return Enum[enumType][value.Name]
-		end
 
-		return nil
-	end
+end
 
+local function Serialize(value)
+if typeof(value) == "Color3" then
+return {
+__type = "Color3",
+R = value.R,
+G = value.G,
+B = value.B,
+}
+end
+
+if typeof(value) == "EnumItem" then
+	return {
+		__type = "EnumItem",
+		EnumType = tostring(value.EnumType),
+		Name = value.Name,
+	}
+end
+
+if type(value) == "table" then
 	local result = {}
 
 	for key, item in pairs(value) do
-		if key ~= "__type" then
-			result[key] = deserialize(item)
-		end
+		result[tostring(key)] = Serialize(item)
 	end
 
 	return result
 end
 
-local function hasFileSystem()
-	return type(isfolder) == "function"
-		and type(makefolder) == "function"
-		and type(isfile) == "function"
-		and type(readfile) == "function"
-		and type(writefile) == "function"
+if type(value) == "string"
+	or type(value) == "number"
+	or type(value) == "boolean"
+	or value == nil then
+	return value
 end
 
-function ConfigManager:_GetPath(name)
-	name = tostring(name or "Default")
+return tostring(value)
 
-	if name == "" then
-		name = "Default"
-	end
 
-	return self.Folder .. "/" .. name .. ".json"
 end
 
-function ConfigManager:_EnsureFolder()
-	if not hasFileSystem() then
-		return false
-	end
-
-	if not isfolder(self.Folder) then
-		pcall(makefolder, self.Folder)
-	end
-
-	return isfolder(self.Folder)
+local function Deserialize(value)
+if type(value) ~= "table" then
+return value
 end
 
-function ConfigManager:_Collect()
-	local options = getOptions()
-	local data = {}
+if value.__type == "Color3" then
+	return Color3.new(
+		tonumber(value.R) or 0,
+		tonumber(value.G) or 0,
+		tonumber(value.B) or 0
+	)
+end
 
-	for index, option in pairs(options) do
-		if type(option) == "table" then
-			local value
+if value.__type == "EnumItem" then
+	local enumName = tostring(value.EnumType):match("Enum%.(.+)")
 
-			if option.Value ~= nil then
-				value = option.Value
-			elseif option.CurrentValue ~= nil then
-				value = option.CurrentValue
-			elseif option.State ~= nil then
-				value = option.State
-			end
+	if enumName and Enum[enumName] then
+		local success, result = pcall(function()
+			return Enum[enumName][value.Name]
+		end)
 
-			if value ~= nil then
-				local serialized = serialize(value)
-
-				if serialized ~= nil then
-					data[index] = serialized
-				end
-			end
+		if success then
+			return result
 		end
 	end
 
-	return data
+	return value.Name
 end
 
-function ConfigManager:_Apply(data)
-	if type(data) ~= "table" then
-		return false
-	end
+local result = {}
 
-	local options = getOptions()
-
-	for index, savedValue in pairs(data) do
-		local option = options[index]
-
-		if option then
-			local value = deserialize(savedValue)
-
-			if value ~= nil then
-				local applied = false
-
-				if type(option.SetValue) == "function" then
-					local ok = pcall(function()
-						option:SetValue(value)
-					end)
-
-					applied = ok
-				end
-
-				if not applied and option.Type == "Toggle" then
-					option.Value = value
-
-					if option.Display then
-						pcall(function()
-							option:Display()
-						end)
-					end
-				elseif not applied and option.Type == "Slider" then
-					option.Value = tonumber(value) or option.Value
-
-					if option.Display then
-						pcall(function()
-							option:Display()
-						end)
-					end
-				elseif not applied and option.Type == "Input" then
-					option.Value = tostring(value)
-				elseif not applied and option.Type == "Dropdown" then
-					option.Value = value
-				end
-			end
-		end
-	end
-
-	return true
+for key, item in pairs(value) do
+	result[key] = Deserialize(item)
 end
 
-function ConfigManager:Save(name)
-	name = tostring(name or "Default")
+return result
 
-	if not self:_EnsureFolder() then
-		return false, "Filesystem API unavailable"
-	end
 
-	local data = self:_Collect()
-
-	local ok, encoded = pcall(function()
-		return HttpService:JSONEncode(data)
-	end)
-
-	if not ok then
-		return false, "Failed to encode configuration"
-	end
-
-	local path = self:_GetPath(name)
-
-	local success, err = pcall(function()
-		writefile(path, encoded)
-	end)
-
-	if not success then
-		return false, err or "Failed to write configuration"
-	end
-
-	self.CurrentConfig = name
-
-	return true
 end
 
-function ConfigManager:Load(name)
-	name = tostring(name or "Default")
-
-	if not hasFileSystem() then
-		return false, "Filesystem API unavailable"
-	end
-
-	local path = self:_GetPath(name)
-
-	if not isfile(path) then
-		return false, "Configuration does not exist"
-	end
-
-	local success, contents = pcall(function()
-		return readfile(path)
-	end)
-
-	if not success or type(contents) ~= "string" then
-		return false, "Failed to read configuration"
-	end
-
-	local decodedSuccess, data = pcall(function()
-		return HttpService:JSONDecode(contents)
-	end)
-
-	if not decodedSuccess or type(data) ~= "table" then
-		return false, "Invalid configuration"
-	end
-
-	local applied = self:_Apply(data)
-
-	if not applied then
-		return false, "Failed to apply configuration"
-	end
-
-	self.CurrentConfig = name
-
-	return true
+local function GetConfigPath(self, name)
+return self.Folder .. "/" .. self.ConfigFolder .. "/" .. tostring(name) .. ".json"
 end
 
-function ConfigManager:Delete(name)
-	name = tostring(name or "Default")
+function ConfigManager:Init(Library, options)
+self.Library = Library
+options = options or {}
 
-	if not hasFileSystem() then
-		return false, "Filesystem API unavailable"
-	end
+self.Folder = options.Folder or self.Folder
+self.ConfigFolder = options.ConfigFolder or self.ConfigFolder
 
-	local path = self:_GetPath(name)
-
-	if not isfile(path) then
-		return false, "Configuration does not exist"
-	end
-
-	local success, err = pcall(function()
-		delfile(path)
-	end)
-
-	if not success then
-		return false, err or "Failed to delete configuration"
-	end
-
-	if self.CurrentConfig == name then
-		self.CurrentConfig = nil
-	end
-
-	return true
+if isfolder then
+	EnsureFolder(self.Folder)
+	EnsureFolder(self.Folder .. "/" .. self.ConfigFolder)
 end
 
-function ConfigManager:Exists(name)
-	name = tostring(name or "Default")
+self.Initialized = true
 
-	if not hasFileSystem() then
-		return false
-	end
+return self
 
-	return isfile(self:_GetPath(name))
+
 end
 
 function ConfigManager:GetConfigs()
-	local configs = {}
+local configs = {}
 
-	if not self:_EnsureFolder() then
-		return configs
-	end
-
-	if type(listfiles) ~= "function" then
-		return configs
-	end
-
-	local success, files = pcall(function()
-		return listfiles(self.Folder)
-	end)
-
-	if not success or type(files) ~= "table" then
-		return configs
-	end
-
-	for _, path in ipairs(files) do
-		local name = tostring(path):match("[^/\\]+$")
-
-		if name then
-			name = name:gsub("%.json$", "")
-
-			if name ~= "" then
-				table.insert(configs, name)
-			end
-		end
-	end
-
-	table.sort(configs)
-
+if not listfiles then
 	return configs
 end
 
-function ConfigManager:SetFolder(folder)
-	if folder and tostring(folder) ~= "" then
-		self.Folder = tostring(folder)
-	end
+local path = self.Folder .. "/" .. self.ConfigFolder
 
-	return self
+if not isfolder(path) then
+	return configs
 end
 
-function ConfigManager:SetLibrary(library)
-	self.Library = library
-	return self
+for _, file in ipairs(listfiles(path)) do
+	local name = file:match("([^/\\]+)%.json$")
+
+	if name then
+		table.insert(configs, name)
+	end
+end
+
+table.sort(configs)
+
+return configs
+
+
+end
+
+function ConfigManager:Save(name)
+if not self.Library then
+return false, "Library is not initialized."
+end
+
+if not writefile then
+	return false, "writefile is not available."
+end
+
+name = tostring(name or "Default")
+
+if name == "" then
+	return false, "Invalid config name."
+end
+
+if isfolder then
+	EnsureFolder(self.Folder)
+	EnsureFolder(self.Folder .. "/" .. self.ConfigFolder)
+end
+
+local data = {
+	Version = 1,
+	Name = name,
+	Options = {},
+}
+
+for flag, option in pairs(self.Library.Options or {}) do
+	if type(option) == "table" then
+		local value = option.Value
+
+		if value ~= nil then
+			data.Options[flag] = Serialize(DeepCopy(value))
+		end
+	end
+end
+
+local success, encoded = pcall(function()
+	return HttpService:JSONEncode(data)
+end)
+
+if not success then
+	return false, tostring(encoded)
+end
+
+local path = GetConfigPath(self, name)
+
+local saved, errorMessage = pcall(function()
+	writefile(path, encoded)
+end)
+
+if not saved then
+	return false, tostring(errorMessage)
+end
+
+return true
+
+
+end
+
+function ConfigManager:Load(name)
+if not self.Library then
+return false, "Library is not initialized."
+end
+
+if not isfile or not readfile then
+	return false, "File APIs are not available."
+end
+
+name = tostring(name or "Default")
+
+local path = GetConfigPath(self, name)
+
+if not isfile(path) then
+	return false, "Config does not exist."
+end
+
+local success, content = pcall(function()
+	return readfile(path)
+end)
+
+if not success then
+	return false, tostring(content)
+end
+
+local decodedSuccess, data = pcall(function()
+	return HttpService:JSONDecode(content)
+end)
+
+if not decodedSuccess then
+	return false, "Invalid config file."
+end
+
+if type(data) ~= "table" or type(data.Options) ~= "table" then
+	return false, "Invalid config structure."
+end
+
+for flag, value in pairs(data.Options) do
+	local option = self.Library.Options[flag]
+
+	if option and type(option.SetValue) == "function" then
+		local decodedValue = Deserialize(value)
+
+		pcall(function()
+			option:SetValue(decodedValue)
+		end)
+	end
+end
+
+return true
+
+
+end
+
+function ConfigManager:Delete(name)
+name = tostring(name or "Default")
+
+if not isfile or not delfile then
+	return false, "File APIs are not available."
+end
+
+local path = GetConfigPath(self, name)
+
+if not isfile(path) then
+	return false, "Config does not exist."
+end
+
+local success, errorMessage = pcall(function()
+	delfile(path)
+end)
+
+if not success then
+	return false, tostring(errorMessage)
+end
+
+return true
+
+
+end
+
+function ConfigManager:HasConfig(name)
+if not isfile then
+return false
+end
+
+return isfile(GetConfigPath(self, tostring(name or "Default")))
+
+
+end
+
+function ConfigManager:RefreshConfigList()
+return self:GetConfigs()
 end
 
 function ConfigManager:BuildConfigSection(groupbox)
-	if not groupbox then
-		return nil
-	end
-
-	local manager = self
-
-	groupbox:AddInput("ConfigName", {
-		Text = "Config Name",
-		Default = "Default",
-		Placeholder = "Configuration name",
-		Finished = true,
-		Callback = function(value)
-			manager.SelectedConfig = tostring(value)
-		end
-	})
-
-	groupbox:AddButton({
-		Text = "Save Config",
-		Func = function()
-			manager:Save(manager.SelectedConfig or "Default")
-		end
-	})
-
-	groupbox:AddButton({
-		Text = "Load Config",
-		Func = function()
-			manager:Load(manager.SelectedConfig or "Default")
-		end
-	})
-
-	groupbox:AddButton({
-		Text = "Delete Config",
-		Risky = true,
-		Func = function()
-			manager:Delete(manager.SelectedConfig or "Default")
-		end
-	})
-
-	return self
+if not groupbox then
+return nil
 end
 
-function ConfigManager:Init(library)
-	self.Library = library
-	self.SelectedConfig = "Default"
+local currentConfig = "Default"
 
-	if library then
-		library.ConfigManager = self
-	end
+groupbox:AddInput("ConfigName", {
+	Text = "Config Name",
+	Default = "Default",
+	Placeholder = "Config name...",
+	Finished = true,
+	Callback = function(value)
+		if tostring(value or "") ~= "" then
+			currentConfig = tostring(value)
+		end
+	end,
+})
 
-	return self
+groupbox:AddButton({
+	Text = "Save Config",
+	Func = function()
+		local success, errorMessage = self:Save(currentConfig)
+
+		if self.Library and self.Library.Notify then
+			self.Library:Notify({
+				Title = success and "Config Saved" or "Config Error",
+				Description = success
+					and ("Saved: " .. currentConfig)
+					or tostring(errorMessage),
+				Time = 3,
+			})
+		end
+	end,
+})
+
+groupbox:AddButton({
+	Text = "Load Config",
+	Func = function()
+		local success, errorMessage = self:Load(currentConfig)
+
+		if self.Library and self.Library.Notify then
+			self.Library:Notify({
+				Title = success and "Config Loaded" or "Config Error",
+				Description = success
+					and ("Loaded: " .. currentConfig)
+					or tostring(errorMessage),
+				Time = 3,
+			})
+		end
+	end,
+})
+
+groupbox:AddButton({
+	Text = "Delete Config",
+	Risky = true,
+	Func = function()
+		local success, errorMessage = self:Delete(currentConfig)
+
+		if self.Library and self.Library.Notify then
+			self.Library:Notify({
+				Title = success and "Config Deleted" or "Config Error",
+				Description = success
+					and ("Deleted: " .. currentConfig)
+					or tostring(errorMessage),
+				Time = 3,
+			})
+		end
+	end,
+})
+
+groupbox:AddDivider()
+
+groupbox:AddLabel({
+	Text = "Available configs",
+})
+
+groupbox:AddButton({
+	Text = "Print Configs",
+	Func = function()
+		local configs = self:GetConfigs()
+
+		for _, configName in ipairs(configs) do
+			print(configName)
+		end
+
+		if self.Library and self.Library.Notify then
+			self.Library:Notify({
+				Title = "Configs",
+				Description = #configs > 0
+					and table.concat(configs, ", ")
+					or "No configs found.",
+				Time = 3,
+			})
+		end
+	end,
+})
+
+return groupbox
+
+
 end
 
-return setmetatable({}, ConfigManager)
+function ConfigManager:SetFolder(folder, configFolder)
+self.Folder = tostring(folder or "Library")
+self.ConfigFolder = tostring(configFolder or "Configs")
+
+if isfolder then
+	EnsureFolder(self.Folder)
+	EnsureFolder(self.Folder .. "/" .. self.ConfigFolder)
+end
+
+
+end
+
+function ConfigManager:GetPath(name)
+return GetConfigPath(self, name)
+end
+
+return ConfigManager
