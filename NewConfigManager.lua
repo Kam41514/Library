@@ -1,802 +1,414 @@
---[[
-    MoonHubGUI
-    ConfigManager.lua
-    Version: 1.0.0
-
-    Works with MoonHubGUI Library.lua
-
-    Features:
-        - Save config
-        - Load config
-        - Delete config
-        - Get config list
-        - Auto config folder
-        - JSON serialization
-        - Library.Flags integration
-]]
-
-local ConfigManager = {}
-
----------------------------------------------------------------------
--- SERVICES
----------------------------------------------------------------------
-
 local HttpService = game:GetService("HttpService")
 
----------------------------------------------------------------------
--- SETTINGS
----------------------------------------------------------------------
+local ConfigManager = {}
+ConfigManager.__index = ConfigManager
 
-ConfigManager.Folder =
-    "MoonHubGUI"
+ConfigManager.Folder = "MoonHubUI"
+ConfigManager.File = "config.json"
 
-ConfigManager.ConfigFolder =
-    "Configs"
+local function getOptions()
+	local ok, Library = pcall(function()
+		return require(script.Parent.Library)
+	end)
 
-ConfigManager.AutoSave =
-    false
+	if not ok or not Library then
+		return {}
+	end
 
-ConfigManager.AutoSaveInterval =
-    60
-
----------------------------------------------------------------------
--- INTERNAL
----------------------------------------------------------------------
-
-local AutoSaveThread
-local Started = false
-
-local function GetFileSystem()
-    return {
-        isfolder = isfolder,
-        makefolder = makefolder,
-        isfile = isfile,
-        writefile = writefile,
-        readfile = readfile,
-        delfile = delfile
-    }
+	return Library.Options or {}
 end
 
-local FS = GetFileSystem()
+local function serialize(value)
+	local valueType = typeof(value)
 
----------------------------------------------------------------------
--- SAFETY
----------------------------------------------------------------------
+	if valueType == "Color3" then
+		return {
+			__type = "Color3",
+			R = value.R,
+			G = value.G,
+			B = value.B
+		}
+	elseif valueType == "EnumItem" then
+		return {
+			__type = "EnumItem",
+			EnumType = tostring(value.EnumType),
+			Name = value.Name
+		}
+	elseif valueType == "table" then
+		local result = {}
 
-local function HasFunction(name)
-    return typeof(FS[name]) == "function"
+		for key, item in pairs(value) do
+			if typeof(key) == "string" or typeof(key) == "number" then
+				result[key] = serialize(item)
+			end
+		end
+
+		return result
+	elseif valueType == "string"
+		or valueType == "number"
+		or valueType == "boolean"
+		or valueType == "nil" then
+		return value
+	end
+
+	return nil
 end
 
-local function CanUseFileSystem()
-    return HasFunction("isfolder")
-        and HasFunction("makefolder")
-        and HasFunction("isfile")
-        and HasFunction("writefile")
-        and HasFunction("readfile")
-        and HasFunction("delfile")
+local function deserialize(value)
+	if typeof(value) ~= "table" then
+		return value
+	end
+
+	if value.__type == "Color3" then
+		return Color3.new(
+			tonumber(value.R) or 1,
+			tonumber(value.G) or 1,
+			tonumber(value.B) or 1
+		)
+	end
+
+	if value.__type == "EnumItem" then
+		local enumType = tostring(value.EnumType):match("Enum%.(.+)")
+
+		if enumType and Enum[enumType] and Enum[enumType][value.Name] then
+			return Enum[enumType][value.Name]
+		end
+
+		return nil
+	end
+
+	local result = {}
+
+	for key, item in pairs(value) do
+		if key ~= "__type" then
+			result[key] = deserialize(item)
+		end
+	end
+
+	return result
 end
 
----------------------------------------------------------------------
--- PATH
----------------------------------------------------------------------
-
-function ConfigManager:GetFolder()
-    return self.Folder
+local function hasFileSystem()
+	return type(isfolder) == "function"
+		and type(makefolder) == "function"
+		and type(isfile) == "function"
+		and type(readfile) == "function"
+		and type(writefile) == "function"
 end
 
-function ConfigManager:GetConfigFolder()
-    return self.Folder
-        .. "/"
-        .. self.ConfigFolder
+function ConfigManager:_GetPath(name)
+	name = tostring(name or "Default")
+
+	if name == "" then
+		name = "Default"
+	end
+
+	return self.Folder .. "/" .. name .. ".json"
 end
 
-function ConfigManager:GetPath(name)
-    return self:GetConfigFolder()
-        .. "/"
-        .. tostring(name)
-        .. ".json"
+function ConfigManager:_EnsureFolder()
+	if not hasFileSystem() then
+		return false
+	end
+
+	if not isfolder(self.Folder) then
+		pcall(makefolder, self.Folder)
+	end
+
+	return isfolder(self.Folder)
 end
 
----------------------------------------------------------------------
--- FOLDER
----------------------------------------------------------------------
+function ConfigManager:_Collect()
+	local options = getOptions()
+	local data = {}
 
-function ConfigManager:CreateFolders()
-    if not CanUseFileSystem() then
-        return false
-    end
+	for index, option in pairs(options) do
+		if type(option) == "table" then
+			local value
 
-    pcall(function()
-        if not FS.isfile then
-            return
-        end
-    end)
+			if option.Value ~= nil then
+				value = option.Value
+			elseif option.CurrentValue ~= nil then
+				value = option.CurrentValue
+			elseif option.State ~= nil then
+				value = option.State
+			end
 
-    if not FS.isfolder(
-        self.Folder
-    ) then
-        FS.makefolder(
-            self.Folder
-        )
-    end
+			if value ~= nil then
+				local serialized = serialize(value)
 
-    local configFolder =
-        self:GetConfigFolder()
+				if serialized ~= nil then
+					data[index] = serialized
+				end
+			end
+		end
+	end
 
-    if not FS.isfolder(
-        configFolder
-    ) then
-        FS.makefolder(
-            configFolder
-        )
-    end
-
-    return true
+	return data
 end
 
----------------------------------------------------------------------
--- SERIALIZATION
----------------------------------------------------------------------
+function ConfigManager:_Apply(data)
+	if type(data) ~= "table" then
+		return false
+	end
 
-local function SerializeValue(value)
-    local valueType =
-        typeof(value)
+	local options = getOptions()
 
-    if valueType == "Color3" then
-        return {
-            __type = "Color3",
+	for index, savedValue in pairs(data) do
+		local option = options[index]
 
-            R = value.R,
+		if option then
+			local value = deserialize(savedValue)
 
-            G = value.G,
+			if value ~= nil then
+				local applied = false
 
-            B = value.B
-        }
-    end
+				if type(option.SetValue) == "function" then
+					local ok = pcall(function()
+						option:SetValue(value)
+					end)
 
-    if valueType == "EnumItem" then
-        return {
-            __type = "EnumItem",
+					applied = ok
+				end
 
-            EnumType =
-                tostring(
-                    value.EnumType
-                ),
+				if not applied and option.Type == "Toggle" then
+					option.Value = value
 
-            Name = value.Name
-        }
-    end
+					if option.Display then
+						pcall(function()
+							option:Display()
+						end)
+					end
+				elseif not applied and option.Type == "Slider" then
+					option.Value = tonumber(value) or option.Value
 
-    if valueType == "CFrame" then
-        local components = {
-            value:GetComponents()
-        }
+					if option.Display then
+						pcall(function()
+							option:Display()
+						end)
+					end
+				elseif not applied and option.Type == "Input" then
+					option.Value = tostring(value)
+				elseif not applied and option.Type == "Dropdown" then
+					option.Value = value
+				end
+			end
+		end
+	end
 
-        return {
-            __type = "CFrame",
-
-            Components =
-                components
-        }
-    end
-
-    if valueType == "Vector2" then
-        return {
-            __type = "Vector2",
-
-            X = value.X,
-
-            Y = value.Y
-        }
-    end
-
-    if valueType == "Vector3" then
-        return {
-            __type = "Vector3",
-
-            X = value.X,
-
-            Y = value.Y,
-
-            Z = value.Z
-        }
-    end
-
-    if type(value) == "table" then
-        local result = {}
-
-        for key, item in pairs(value) do
-            result[tostring(key)] =
-                SerializeValue(item)
-        end
-
-        return result
-    end
-
-    if valueType == "string"
-        or valueType == "number"
-        or valueType == "boolean"
-        or value == nil then
-
-        return value
-    end
-
-    return tostring(value)
+	return true
 end
-
-local function DeserializeValue(value)
-    if type(value) ~= "table" then
-        return value
-    end
-
-    if value.__type == "Color3" then
-        return Color3.new(
-            tonumber(value.R) or 1,
-            tonumber(value.G) or 1,
-            tonumber(value.B) or 1
-        )
-    end
-
-    if value.__type == "Vector2" then
-        return Vector2.new(
-            tonumber(value.X) or 0,
-            tonumber(value.Y) or 0
-        )
-    end
-
-    if value.__type == "Vector3" then
-        return Vector3.new(
-            tonumber(value.X) or 0,
-            tonumber(value.Y) or 0,
-            tonumber(value.Z) or 0
-        )
-    end
-
-    if value.__type == "CFrame" then
-        if type(value.Components)
-            == "table" then
-
-            return CFrame.new(
-                table.unpack(
-                    value.Components
-                )
-            )
-        end
-    end
-
-    if value.__type == "EnumItem" then
-        local enumName =
-            tostring(
-                value.EnumType
-                or ""
-            )
-
-        enumName =
-            enumName:gsub(
-                "^Enum%.",
-                ""
-            )
-
-        local enumObject =
-            Enum[enumName]
-
-        if enumObject then
-            local success, result =
-                pcall(function()
-                    return enumObject[
-                        value.Name
-                    ]
-                end)
-
-            if success then
-                return result
-            end
-        end
-    end
-
-    local result = {}
-
-    for key, item in pairs(value) do
-        result[key] =
-            DeserializeValue(item)
-    end
-
-    return result
-end
-
----------------------------------------------------------------------
--- COLLECT
----------------------------------------------------------------------
-
-function ConfigManager:GetData()
-    local data = {}
-
-    if not self.Library then
-        return data
-    end
-
-    local flags =
-        self.Library.Flags
-        or {}
-
-    for flag, value in pairs(flags) do
-        data[flag] =
-            SerializeValue(value)
-    end
-
-    return data
-end
-
----------------------------------------------------------------------
--- APPLY
----------------------------------------------------------------------
-
-function ConfigManager:ApplyData(data)
-    if not self.Library then
-        return false
-    end
-
-    if type(data) ~= "table" then
-        return false
-    end
-
-    local options =
-        self.Library.Options
-        or {}
-
-    for flag, value in pairs(data) do
-        local option =
-            options[flag]
-
-        local decoded =
-            DeserializeValue(value)
-
-        if option then
-            pcall(function()
-                if option.SetValue then
-                    option:SetValue(
-                        decoded,
-                        true
-                    )
-                else
-                    option.Value =
-                        decoded
-                end
-            end)
-        end
-
-        self.Library.Flags[flag] =
-            decoded
-    end
-
-    return true
-end
-
----------------------------------------------------------------------
--- SAVE
----------------------------------------------------------------------
 
 function ConfigManager:Save(name)
-    if not CanUseFileSystem() then
-        warn(
-            "[MoonHubGUI] FileSystem API is unavailable."
-        )
+	name = tostring(name or "Default")
 
-        return false
-    end
+	if not self:_EnsureFolder() then
+		return false, "Filesystem API unavailable"
+	end
 
-    name = tostring(name)
+	local data = self:_Collect()
 
-    if name == ""
-        or name:find("[/\\]") then
+	local ok, encoded = pcall(function()
+		return HttpService:JSONEncode(data)
+	end)
 
-        warn(
-            "[MoonHubGUI] Invalid config name."
-        )
+	if not ok then
+		return false, "Failed to encode configuration"
+	end
 
-        return false
-    end
+	local path = self:_GetPath(name)
 
-    self:CreateFolders()
+	local success, err = pcall(function()
+		writefile(path, encoded)
+	end)
 
-    local data =
-        self:GetData()
+	if not success then
+		return false, err or "Failed to write configuration"
+	end
 
-    local success, encoded =
-        pcall(
-            HttpService.JSONEncode,
-            HttpService,
-            data
-        )
+	self.CurrentConfig = name
 
-    if not success then
-        warn(
-            "[MoonHubGUI] Failed to encode config."
-        )
-
-        return false
-    end
-
-    local path =
-        self:GetPath(name)
-
-    local writeSuccess =
-        pcall(
-            FS.writefile,
-            path,
-            encoded
-        )
-
-    if not writeSuccess then
-        warn(
-            "[MoonHubGUI] Failed to save config."
-        )
-
-        return false
-    end
-
-    self.LastConfig =
-        name
-
-    return true
+	return true
 end
-
----------------------------------------------------------------------
--- LOAD
----------------------------------------------------------------------
 
 function ConfigManager:Load(name)
-    if not CanUseFileSystem() then
-        warn(
-            "[MoonHubGUI] FileSystem API is unavailable."
-        )
+	name = tostring(name or "Default")
 
-        return false
-    end
+	if not hasFileSystem() then
+		return false, "Filesystem API unavailable"
+	end
 
-    name = tostring(name)
+	local path = self:_GetPath(name)
 
-    local path =
-        self:GetPath(name)
+	if not isfile(path) then
+		return false, "Configuration does not exist"
+	end
 
-    if not FS.isfile(path) then
-        warn(
-            "[MoonHubGUI] Config does not exist: "
-            .. name
-        )
+	local success, contents = pcall(function()
+		return readfile(path)
+	end)
 
-        return false
-    end
+	if not success or type(contents) ~= "string" then
+		return false, "Failed to read configuration"
+	end
 
-    local success, content =
-        pcall(
-            FS.readfile,
-            path
-        )
+	local decodedSuccess, data = pcall(function()
+		return HttpService:JSONDecode(contents)
+	end)
 
-    if not success then
-        warn(
-            "[MoonHubGUI] Failed to read config."
-        )
+	if not decodedSuccess or type(data) ~= "table" then
+		return false, "Invalid configuration"
+	end
 
-        return false
-    end
+	local applied = self:_Apply(data)
 
-    local decodeSuccess, data =
-        pcall(
-            HttpService.JSONDecode,
-            HttpService,
-            content
-        )
+	if not applied then
+		return false, "Failed to apply configuration"
+	end
 
-    if not decodeSuccess then
-        warn(
-            "[MoonHubGUI] Invalid config file."
-        )
+	self.CurrentConfig = name
 
-        return false
-    end
-
-    local applied =
-        self:ApplyData(data)
-
-    if applied then
-        self.LastConfig =
-            name
-    end
-
-    return applied
+	return true
 end
-
----------------------------------------------------------------------
--- DELETE
----------------------------------------------------------------------
 
 function ConfigManager:Delete(name)
-    if not CanUseFileSystem() then
-        warn(
-            "[MoonHubGUI] FileSystem API is unavailable."
-        )
+	name = tostring(name or "Default")
 
-        return false
-    end
+	if not hasFileSystem() then
+		return false, "Filesystem API unavailable"
+	end
 
-    name = tostring(name)
+	local path = self:_GetPath(name)
 
-    local path =
-        self:GetPath(name)
+	if not isfile(path) then
+		return false, "Configuration does not exist"
+	end
 
-    if not FS.isfile(path) then
-        return false
-    end
+	local success, err = pcall(function()
+		delfile(path)
+	end)
 
-    local success =
-        pcall(
-            FS.delfile,
-            path
-        )
+	if not success then
+		return false, err or "Failed to delete configuration"
+	end
 
-    if success
-        and self.LastConfig == name then
+	if self.CurrentConfig == name then
+		self.CurrentConfig = nil
+	end
 
-        self.LastConfig = nil
-    end
-
-    return success
+	return true
 end
-
----------------------------------------------------------------------
--- EXISTS
----------------------------------------------------------------------
 
 function ConfigManager:Exists(name)
-    if not CanUseFileSystem() then
-        return false
-    end
+	name = tostring(name or "Default")
 
-    return FS.isfile(
-        self:GetPath(name)
-    )
+	if not hasFileSystem() then
+		return false
+	end
+
+	return isfile(self:_GetPath(name))
 end
 
----------------------------------------------------------------------
--- LIST
----------------------------------------------------------------------
+function ConfigManager:GetConfigs()
+	local configs = {}
 
-function ConfigManager:List()
-    local configs = {}
+	if not self:_EnsureFolder() then
+		return configs
+	end
 
-    if not listfiles then
-        return configs
-    end
+	if type(listfiles) ~= "function" then
+		return configs
+	end
 
-    self:CreateFolders()
+	local success, files = pcall(function()
+		return listfiles(self.Folder)
+	end)
 
-    local success, files =
-        pcall(
-            listfiles,
-            self:GetConfigFolder()
-        )
+	if not success or type(files) ~= "table" then
+		return configs
+	end
 
-    if not success
-        or type(files) ~= "table" then
+	for _, path in ipairs(files) do
+		local name = tostring(path):match("[^/\\]+$")
 
-        return configs
-    end
+		if name then
+			name = name:gsub("%.json$", "")
 
-    for _, file in ipairs(files) do
-        local name =
-            tostring(file)
-                :match(
-                    "([^/\\]+)%.json$"
-                )
+			if name ~= "" then
+				table.insert(configs, name)
+			end
+		end
+	end
 
-        if name then
-            table.insert(
-                configs,
-                name
-            )
-        end
-    end
+	table.sort(configs)
 
-    table.sort(configs)
-
-    return configs
+	return configs
 end
 
----------------------------------------------------------------------
--- CLEAR
----------------------------------------------------------------------
+function ConfigManager:SetFolder(folder)
+	if folder and tostring(folder) ~= "" then
+		self.Folder = tostring(folder)
+	end
 
-function ConfigManager:Clear()
-    local configs =
-        self:List()
-
-    for _, name in ipairs(configs) do
-        self:Delete(name)
-    end
-
-    self.LastConfig = nil
-
-    return true
+	return self
 end
-
----------------------------------------------------------------------
--- LIBRARY CONNECTION
----------------------------------------------------------------------
 
 function ConfigManager:SetLibrary(library)
-    assert(
-        type(library) == "table",
-        "ConfigManager:SetLibrary expected Library table"
-    )
-
-    self.Library = library
-
-    return self
+	self.Library = library
+	return self
 end
 
----------------------------------------------------------------------
--- AUTOSAVE
----------------------------------------------------------------------
+function ConfigManager:BuildConfigSection(groupbox)
+	if not groupbox then
+		return nil
+	end
 
-function ConfigManager:SetAutoSave(enabled, interval)
-    self.AutoSave =
-        enabled == true
+	local manager = self
 
-    if interval then
-        self.AutoSaveInterval =
-            tonumber(interval)
-            or self.AutoSaveInterval
-    end
+	groupbox:AddInput("ConfigName", {
+		Text = "Config Name",
+		Default = "Default",
+		Placeholder = "Configuration name",
+		Finished = true,
+		Callback = function(value)
+			manager.SelectedConfig = tostring(value)
+		end
+	})
 
-    return self
+	groupbox:AddButton({
+		Text = "Save Config",
+		Func = function()
+			manager:Save(manager.SelectedConfig or "Default")
+		end
+	})
+
+	groupbox:AddButton({
+		Text = "Load Config",
+		Func = function()
+			manager:Load(manager.SelectedConfig or "Default")
+		end
+	})
+
+	groupbox:AddButton({
+		Text = "Delete Config",
+		Risky = true,
+		Func = function()
+			manager:Delete(manager.SelectedConfig or "Default")
+		end
+	})
+
+	return self
 end
-
-function ConfigManager:StartAutoSave()
-    if Started then
-        return self
-    end
-
-    Started = true
-
-    AutoSaveThread =
-        task.spawn(function()
-            while Started do
-                task.wait(
-                    self.AutoSaveInterval
-                )
-
-                if not Started then
-                    break
-                end
-
-                if self.AutoSave
-                    and self.LastConfig then
-
-                    pcall(function()
-                        self:Save(
-                            self.LastConfig
-                        )
-                    end)
-                end
-            end
-        end)
-
-    return self
-end
-
-function ConfigManager:StopAutoSave()
-    Started = false
-
-    AutoSaveThread = nil
-
-    return self
-end
-
----------------------------------------------------------------------
--- QUICK CONFIG
----------------------------------------------------------------------
-
-function ConfigManager:SaveLast()
-    if not self.LastConfig then
-        return false
-    end
-
-    return self:Save(
-        self.LastConfig
-    )
-end
-
-function ConfigManager:LoadLast()
-    if not self.LastConfig then
-        return false
-    end
-
-    return self:Load(
-        self.LastConfig
-    )
-end
-
----------------------------------------------------------------------
--- EXPORT
----------------------------------------------------------------------
-
-function ConfigManager:Export()
-    local data =
-        self:GetData()
-
-    local success, encoded =
-        pcall(
-            HttpService.JSONEncode,
-            HttpService,
-            data
-        )
-
-    if success then
-        return encoded
-    end
-
-    return nil
-end
-
----------------------------------------------------------------------
--- IMPORT
----------------------------------------------------------------------
-
-function ConfigManager:Import(json)
-    if type(json) ~= "string" then
-        return false
-    end
-
-    local success, data =
-        pcall(
-            HttpService.JSONDecode,
-            HttpService,
-            json
-        )
-
-    if not success then
-        return false
-    end
-
-    return self:ApplyData(data)
-end
-
----------------------------------------------------------------------
--- INITIALIZE
----------------------------------------------------------------------
 
 function ConfigManager:Init(library)
-    if library then
-        self:SetLibrary(
-            library
-        )
-    end
+	self.Library = library
+	self.SelectedConfig = "Default"
 
-    self:CreateFolders()
+	if library then
+		library.ConfigManager = self
+	end
 
-    if self.AutoSave then
-        self:StartAutoSave()
-    end
-
-    return self
+	return self
 end
 
----------------------------------------------------------------------
--- DESTROY
----------------------------------------------------------------------
-
-function ConfigManager:Unload()
-    self:StopAutoSave()
-
-    self.Library = nil
-
-    self.LastConfig = nil
-end
-
----------------------------------------------------------------------
--- RETURN
----------------------------------------------------------------------
-
-return ConfigManager
+return setmetatable({}, ConfigManager)
